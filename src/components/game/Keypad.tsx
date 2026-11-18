@@ -33,10 +33,10 @@ export function Keypad({
   }
 
   return (
-    <div>
+    <div className="land:flex land:min-h-0 land:flex-1 land:flex-col">
       <div
         aria-live="polite"
-        className={`mb-2 flex h-11 [@media(max-height:700px)]:h-9 items-center justify-center rounded-2xl bg-surface font-mono text-3xl font-bold ring-1 ${
+        className={`mb-2 flex h-11 [@media(max-height:700px)]:h-9 land:h-16! land:text-5xl items-center justify-center rounded-2xl bg-surface font-mono text-3xl font-bold ring-1 ${
           tooHigh ? "text-red ring-red" : "ring-line"
         }`}
       >
@@ -48,7 +48,7 @@ export function Keypad({
           value
         )}
       </div>
-      <div className="mb-2 flex gap-1.5" aria-label="Szybki wybór">
+      <div className="mb-2 flex gap-1.5 land:mb-3 land:gap-2" aria-label="Szybki wybór">
         {exact !== null && (
           <QuickKey active={value === String(exact)} onClick={() => onChange(String(exact))} highlight>
             🎯 {exact}
@@ -60,7 +60,7 @@ export function Keypad({
           </QuickKey>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2 land:max-h-[26rem] land:flex-1 land:auto-rows-fr land:gap-3">
         {KEYS.map((k) => {
           const isOk = k === "OK";
           const disabled = isOk && (n === null || tooHigh);
@@ -71,7 +71,7 @@ export function Keypad({
               onClick={() => press(k)}
               disabled={disabled}
               aria-label={k === "⌫" ? "Usuń cyfrę" : isOk ? "Zapisz serię" : k}
-              className={`h-12 rounded-2xl text-2xl max-[380px]:h-11 [@media(max-height:700px)]:h-10 font-semibold transition active:scale-95 disabled:opacity-40 ${
+              className={`h-12 rounded-2xl text-2xl max-[380px]:h-11 [@media(max-height:700px)]:h-10 md:h-14 font-semibold transition active:scale-95 disabled:opacity-40 land:h-auto! land:min-h-9 ${isOk ? "" : "land:text-3xl"} ${
                 isOk
                   ? "bg-green text-white"
                   : k === "⌫"
@@ -104,7 +104,7 @@ function QuickKey({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-10 min-w-0 flex-1 rounded-xl font-mono text-lg font-bold tabular-nums transition active:scale-95 max-[380px]:h-9 [@media(max-height:700px)]:h-9 ${
+      className={`h-10 min-w-0 flex-1 rounded-xl font-mono text-lg font-bold tabular-nums transition active:scale-95 max-[380px]:h-9 [@media(max-height:700px)]:h-9 land:h-12! land:text-xl ${
         active
           ? "bg-cream text-board"
           : highlight

@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Tablet poziomo i komputer: ekran gry w dwóch kolumnach (wyniki | klawiatura). */
+@custom-variant land (@media (min-width: 48rem) and (orientation: landscape));
+
 /*
  * Kolory inspirowane tarczą. Motyw ciemny jest domyślny, jasny włącza się,
  * gdy system tak każe (motyw „systemowy”) albo gdy użytkownik wybierze go w opcjach.
@@ -66,6 +69,21 @@
 
 html {
   -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * Tablet i komputer: wszystko (czcionki, odstępy, przyciski) jest w rem,
+ * więc większy rozmiar bazowy powiększa cały interfejs naraz. Telefon (także poziomo) bez zmian.
+ */
+@media (min-width: 48rem) and (min-height: 36rem) {
+  html {
+    font-size: 112.5%;
+  }
+}
+@media (min-width: 64rem) and (min-height: 45rem) {
+  html {
+    font-size: 125%;
+  }
 }
 
 body {

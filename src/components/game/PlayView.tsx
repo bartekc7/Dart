@@ -58,7 +58,7 @@ export function PlayView({
   }
 
   return (
-    <main className="screen-fit flex flex-col gap-3">
+    <main className="screen-fit wide mx-auto flex w-full max-w-xl flex-col gap-3 land:max-w-none land:grid land:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] land:grid-rows-[auto_minmax(0,1fr)] land:gap-x-8 land:gap-y-4">
       {/* Najważniejsze: kto rzuca i ile mu zostało. */}
       <section className="shrink-0 rounded-3xl bg-gradient-to-br from-red to-red-deep px-3 pt-2 pb-2.5 text-center text-white shadow-lg shadow-red/20">
         <div className="flex items-center justify-between">
@@ -81,7 +81,7 @@ export function PlayView({
             ↶ Cofnij
           </button>
         </div>
-        <p className="text-6xl leading-tight font-bold tabular-nums max-[380px]:text-5xl">{remaining}</p>
+        <p className="text-6xl leading-tight font-bold tabular-nums max-[380px]:text-5xl [@media(min-width:48rem)_and_(min-height:36rem)]:text-8xl">{remaining}</p>
         {feedback ? (
           <p role="status" className="mx-auto mt-1 w-fit rounded-full bg-black/25 px-3 py-0.5 text-sm font-medium">
             {feedback.bust ? "✋ " : feedback.text.endsWith("🎯") ? "" : "✓ "}
@@ -96,7 +96,7 @@ export function PlayView({
 
       <ol
         aria-label="Wyniki"
-        className={`-mx-0.5 grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto p-0.5 ${game.players.length > 3 ? "grid-cols-2" : "grid-cols-1"}`}
+        className={`-mx-0.5 grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto p-0.5 land:col-start-1 land:gap-2 ${game.players.length > 3 ? "grid-cols-2" : "grid-cols-1"}`}
       >
         {game.players.map((p) => {
           const active = p.id === player.id;
@@ -106,12 +106,12 @@ export function PlayView({
             <li
               key={p.id}
               aria-current={active || undefined}
-              className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-1 ring-1 ${
+              className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-1 ring-1 land:py-2 ${
                 active ? "bg-surface-2 ring-cream" : place ? "bg-surface/50 ring-line/50" : "bg-surface ring-line"
               }`}
             >
               <span className={`size-2 shrink-0 rounded-full ${active ? "bg-cream" : "bg-transparent"}`} />
-              <span className={`flex-1 truncate font-medium ${place ? "text-muted" : ""}`}>{p.name}</span>
+              <span className={`flex-1 truncate font-medium land:text-xl ${place ? "text-muted" : ""}`}>{p.name}</span>
               {place ? (
                 <span className="text-lg font-bold" aria-label={`${place}. miejsce`}>
                   {MEDALS[place - 1] ?? `${place}.`}
@@ -119,11 +119,11 @@ export function PlayView({
               ) : (
                 <>
                   {last && game.players.length <= 3 && (
-                    <span className={`text-sm ${last.bust ? "text-red line-through" : "text-muted"}`}>
+                    <span className={`text-sm land:text-base ${last.bust ? "text-red line-through" : "text-muted"}`}>
                       {last.bust ? last.scored : `+${last.scored}`}
                     </span>
                   )}
-                  <span className="text-right font-mono text-xl font-bold tabular-nums">
+                  <span className="text-right font-mono text-xl font-bold tabular-nums land:text-3xl">
                     {remainingFor(game, p.id)}
                   </span>
                 </>
@@ -133,7 +133,8 @@ export function PlayView({
         })}
       </ol>
 
-      <div className="shrink-0">
+      {/* Na tablecie i komputerze klawiatura zajmuje prawą kolumnę na całą wysokość. */}
+      <div className="shrink-0 land:col-start-2 land:row-span-2 land:row-start-1 land:flex land:min-h-0 land:flex-col">
         <Keypad value={input} onChange={setInput} onSubmit={submit} remaining={remaining} />
       </div>
     </main>
