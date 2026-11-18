@@ -22,6 +22,11 @@ export interface Turn {
   scored: number;
   /** true, gdy seria przekroczyła cel i się nie liczy. */
   bust: boolean;
+  /**
+   * Punkty z kolejnych rzutek (1–3), gdy wpisywano każdą osobno.
+   * Brak = wpisano tylko sumę serii.
+   */
+  darts?: number[];
 }
 
 export interface GameState {

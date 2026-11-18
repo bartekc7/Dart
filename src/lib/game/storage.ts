@@ -97,3 +97,12 @@ export function useTheme(): [Theme, (t: Theme) => void] {
   );
   return [theme, setTheme];
 }
+
+/** Jak wpisywać serię: sama suma (domyślnie) albo każda z trzech rzutek osobno. */
+export type EntryMode = "sum" | "darts";
+const ENTRY_KEY = "dart:entryMode";
+
+export function useEntryMode(): [EntryMode, (m: EntryMode) => void] {
+  const [raw, set] = useStored<EntryMode>(ENTRY_KEY);
+  return [raw === "darts" ? "darts" : "sum", set];
+}

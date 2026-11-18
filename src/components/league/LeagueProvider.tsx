@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "@/lib/api";
+import { playerColor } from "@/lib/colors";
 import type { RankingRow } from "@/lib/game/history";
 import type { Me, Member, MyGame } from "@/lib/server/league";
 
@@ -63,4 +64,17 @@ export function useLeague() {
   const ctx = useContext(LeagueContext);
   if (!ctx) throw new Error("useLeague poza LeagueProvider");
   return ctx;
+}
+
+/** Kolor gracza ligi po id (nieznany gracz dostaje kolor wyliczony z id). */
+export function usePlayerColors(): (id: string | undefined) => string {
+  const { state } = useLeague();
+  const members = state.status === "ready" ? state.data.members : [];
+  return (id) => {
+    const m = members.find((x) => x.id === id);
+    if (m) return playerColor(m.color);
+    let h = 0;
+    for (const ch of id ?? "") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return playerColor(h);
+  };
 }

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { AddMemberForm } from "@/components/league/AddMemberForm";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
+import { PlayerDot } from "@/components/ui/PlayerDot";
+import { usePlayerColors } from "@/components/league/LeagueProvider";
 import { createGame, DEFAULT_TARGET } from "@/lib/game/engine";
 import { useLastPlayerIds } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
@@ -32,6 +34,7 @@ export function SetupView({
   const [lastIds, setLastIds] = useLastPlayerIds();
   const [edited, setEdited] = useState<string[] | null>(null);
   const byId = new Map(members.map((m) => [m.id, m]));
+  const colorOf = usePlayerColors();
   const fallback = lastIds?.filter((id) => byId.has(id)) ?? [];
   const ids = (edited ?? (fallback.length ? fallback : [myId])).filter((id) => byId.has(id));
   const setIds = (n: string[]) => setEdited(n);
@@ -74,6 +77,7 @@ export function SetupView({
                 className="flex items-center gap-2 rounded-2xl bg-surface py-2 pr-2 pl-4 ring-1 ring-line"
               >
                 <span className="w-6 text-center font-mono text-muted">{i + 1}.</span>
+                <PlayerDot color={colorOf(id)} />
                 <span className="flex-1 truncate text-lg font-medium">{name}</span>
                 <IconButton label={`Przesuń ${name} wyżej`} onClick={() => move(i, -1)} disabled={i === 0}>
                   ↑

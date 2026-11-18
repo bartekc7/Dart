@@ -2,7 +2,8 @@
 
 import { MAX_SCORE_PER_TURN } from "@/lib/game/engine";
 
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "OK"] as const;
+export const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "⌫", "0", "OK"] as const;
+export type Key = (typeof KEYS)[number];
 
 /** Najczęstsze sumy serii w darcie – jedno dotknięcie zamiast trzech. */
 const QUICK = [26, 41, 45, 60, 100];
@@ -25,7 +26,7 @@ export function Keypad({
   const n = value === "" ? null : Number(value);
   const tooHigh = n !== null && n > MAX_SCORE_PER_TURN;
 
-  function press(k: (typeof KEYS)[number]) {
+  function press(k: Key) {
     if (k === "⌫") return onChange(value.slice(0, -1));
     if (k === "OK") return !tooHigh && n !== null && onSubmit();
     if (value.length >= 3) return;
@@ -60,35 +61,12 @@ export function Keypad({
           </QuickKey>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2 land:max-h-[26rem] land:flex-1 land:auto-rows-fr land:gap-3">
-        {KEYS.map((k) => {
-          const isOk = k === "OK";
-          const disabled = isOk && (n === null || tooHigh);
-          return (
-            <button
-              key={k}
-              type="button"
-              onClick={() => press(k)}
-              disabled={disabled}
-              aria-label={k === "⌫" ? "Usuń cyfrę" : isOk ? "Zapisz serię" : k}
-              className={`h-12 rounded-2xl text-2xl max-[380px]:h-11 [@media(max-height:700px)]:h-10 md:h-14 font-semibold transition active:scale-95 disabled:opacity-40 land:h-auto! land:min-h-9 ${isOk ? "" : "land:text-3xl"} ${
-                isOk
-                  ? "bg-green text-white"
-                  : k === "⌫"
-                    ? "bg-surface-2 text-muted ring-1 ring-line"
-                    : "bg-surface-2 ring-1 ring-line"
-              }`}
-            >
-              {isOk ? "Zapisz" : k}
-            </button>
-          );
-        })}
-      </div>
+      <KeyGrid onPress={press} okLabel="Zapisz" okAria="Zapisz serię" okDisabled={n === null || tooHigh} />
     </div>
   );
 }
 
-function QuickKey({
+export function QuickKey({
   children,
   onClick,
   active,
@@ -114,5 +92,44 @@ function QuickKey({
     >
       {children}
     </button>
+  );
+}
+
+/** Klawiatura cyfr z kasowaniem i przyciskiem zatwierdzenia. */
+export function KeyGrid({
+  onPress,
+  okLabel,
+  okAria,
+  okDisabled,
+}: {
+  onPress: (k: Key) => void;
+  okLabel: string;
+  okAria: string;
+  okDisabled: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2 land:max-h-[26rem] land:flex-1 land:auto-rows-fr land:gap-3">
+      {KEYS.map((k) => {
+        const isOk = k === "OK";
+        return (
+          <button
+            key={k}
+            type="button"
+            onClick={() => onPress(k)}
+            disabled={isOk && okDisabled}
+            aria-label={k === "⌫" ? "Usuń cyfrę" : isOk ? okAria : k}
+            className={`h-12 rounded-2xl text-2xl max-[380px]:h-11 [@media(max-height:700px)]:h-10 md:h-14 font-semibold transition active:scale-95 disabled:opacity-40 land:h-auto! land:min-h-9 ${isOk ? "" : "land:text-3xl"} ${
+              isOk
+                ? "bg-green text-white"
+                : k === "⌫"
+                  ? "bg-surface-2 text-muted ring-1 ring-line"
+                  : "bg-surface-2 ring-1 ring-line"
+            }`}
+          >
+            {isOk ? okLabel : k}
+          </button>
+        );
+      })}
+    </div>
   );
 }

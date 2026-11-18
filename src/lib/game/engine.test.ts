@@ -6,6 +6,7 @@ import {
   finishOrder,
   isGameOver,
   isGameState,
+  isValidDart,
   lastTurnOf,
   placeOf,
   playerStats,
@@ -22,7 +23,7 @@ const players = [
   { id: "c", name: "Celina" },
 ];
 
-const play = (g: GameState, ...scores: number[]) => scores.reduce(applyTurn, g);
+const play = (g: GameState, ...scores: number[]) => scores.reduce((s, x) => applyTurn(s, x), g);
 
 describe("podstawy", () => {
   it("pokazuje ile zostało i zmienia kolejkę", () => {
@@ -90,6 +91,28 @@ describe("gra do ostatniego miejsca", () => {
   it("kolejka po ukończeniu ostatniego w rzędzie wraca na początek", () => {
     const g = play(createGame(players, 101), 10, 10, 101); // Celina kończy
     expect(currentPlayer(g)?.id).toBe("a");
+  });
+});
+
+describe("rzutka po rzutce", () => {
+  it("zapisuje rzutki, sprawdza sumę i wartości", () => {
+    const g = applyTurn(createGame(players, 101), 85, [20, 60, 5]);
+    expect(g.turns[0]).toMatchObject({ scored: 85, darts: [20, 60, 5], bust: false });
+    expect(() => applyTurn(createGame(players, 101), 80, [20, 60, 5])).toThrow();
+    expect(() => applyTurn(createGame(players, 101), 23, [23])).toThrow();
+    expect(() => applyTurn(createGame(players, 101), 4, [1, 1, 1, 1])).toThrow();
+  });
+
+  it("przekroczenie liczone po sumie, także gdy seria kończy się wcześniej", () => {
+    const g = applyTurn(createGame(players, 101), 120, [60, 60]);
+    expect(g.turns[0].bust).toBe(true);
+  });
+
+  it("isValidDart: pola, podwójne, potrójne i środek", () => {
+    expect([0, 1, 20, 22, 25, 39, 40, 50, 57, 60].map(isValidDart)).toEqual([
+      true, true, true, true, true, true, true, true, true, true,
+    ]);
+    expect([23, 43, 41, 59, 61, -1, 2.5].map(isValidDart).some(Boolean)).toBe(false);
   });
 });
 
