@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { isGameState } from "./engine";
 import type { GameState } from "./types";
 
 /**
@@ -57,5 +58,10 @@ function useStored<T>(key: string): [T | null | undefined, (v: T | null) => void
   return [value, set];
 }
 
-export const useStoredGame = () => useStored<GameState>(GAME_KEY);
+export function useStoredGame(): [GameState | null | undefined, (v: GameState | null) => void] {
+  const [raw, set] = useStored<unknown>(GAME_KEY);
+  // Zapis ze starszej wersji aplikacji traktujemy jak brak gry.
+  const game = raw === undefined ? undefined : isGameState(raw) ? raw : null;
+  return [game, set as (v: GameState | null) => void];
+}
 export const useLastPlayerNames = () => useStored<string[]>(PLAYERS_KEY);
