@@ -95,6 +95,6 @@ body {
 /* Ekran gry mieści się w całości na telefonie, bez przewijania. */
 .screen-fit {
   height: calc(
-    100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom))
+    100dvh - max(1rem, env(safe-area-inset-top)) - 0.75rem - max(1rem, env(safe-area-inset-bottom))
   );
 }
