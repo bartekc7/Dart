@@ -5,6 +5,8 @@ import { LoadError, Loading } from "@/components/league/StatusScreens";
 import { ButtonLink } from "@/components/ui/Button";
 import { isGameOver } from "@/lib/game/engine";
 import { useStoredGame } from "@/lib/game/storage";
+import { publishLive } from "@/lib/live/publish";
+import { useEffect } from "react";
 import { PlayView } from "./PlayView";
 import { ResultsView } from "./ResultsView";
 import { SetupView } from "./SetupView";
@@ -12,6 +14,11 @@ import { SetupView } from "./SetupView";
 export function GameScreen() {
   const [game, setGame] = useStoredGame();
   const { state } = useLeague();
+
+  // Każda zmiana (seria, cofnięcie, koniec) trafia do podglądu u pozostałych graczy.
+  useEffect(() => {
+    if (game) publishLive(game);
+  }, [game]);
 
   // Trwająca gra działa też bez sieci – liga potrzebna dopiero przy zapisie wyniku.
   if (game && !isGameOver(game)) return <PlayView game={game} onChange={setGame} />;

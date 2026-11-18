@@ -29,6 +29,14 @@ TEST_DATABASE_URL=postgres://... npm test
 - Organizator może dodać gracza bez telefonu i przekazać rolę organizatora.
 - Gry i ranking (ostatnie 10 gier) są wspólne dla całej ligi.
 
+## Podgląd na żywo
+
+Punkty wpisuje jeden telefon (ten, który rozpoczął grę). Po każdej serii wysyła
+stan gry do bazy (`live_games`). Pozostali gracze widzą na starcie baner „Trwa gra”
+albo „Twoja kolej!”, a po dotknięciu podgląd `/na-zywo/[id]`. Telefony pytają
+serwer co 2,5–3 s i tylko wtedy, gdy ekran jest włączony. Po końcu gry podgląd
+pokazuje klasyfikację, a start ranking i „Twoje ostatnie gry”.
+
 ## Struktura
 
 | Ścieżka | Co tam jest |
@@ -48,7 +56,7 @@ też przy zapisie gier do bazy i podglądzie na żywo.
 1. ✅ Szkielet aplikacji
 2. ✅ Rozgrywka na jednym telefonie: gracze, kolejność, cel, wpis serii, „zostało X”
 3. ✅ Ligi i zapis gier w bazie (Neon Postgres)
-4. Opcjonalnie: podgląd na żywo na telefonach graczy
+4. ✅ Podgląd gry na żywo dla pozostałych graczy
 
 ## Wdrożenie na Vercel
 

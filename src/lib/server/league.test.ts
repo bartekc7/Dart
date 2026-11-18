@@ -8,11 +8,16 @@ import {
   createClaimToken,
   createLeague,
   deleteGame,
+  deleteLiveGame,
   joinLeague,
   leagueRanking,
+  liveGame,
+  liveGames,
   listMembers,
   makeOrganizer,
   newDeviceToken,
+  publishLiveGame,
+  recentGamesOf,
   requireMe,
   saveGame,
   whoAmI,
@@ -109,6 +114,40 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(r.games).toBe(0);
   });
 
+  it("ostatnie gry gracza z miejscem", async () => {
+    const me = await requireMe(db, ania);
+    const ids = Object.fromEntries((await listMembers(db, me.league.id)).map((m) => [m.name, m.id]));
+    await saveGame(db, me, { id: "h1", target: 101, players: [ids.Bartek, ids.Ania], turns: [{ scored: 101 }] });
+    const mine = await recentGamesOf(db, ids.Ania);
+    expect(mine).toMatchObject([{ id: "h1", place: 2, players: 2, target: 101 }]);
+  });
+
+  it("gra na żywo: stan widzi cała liga, starsza wersja nie nadpisuje nowszej", async () => {
+    const me = await requireMe(db, ania);
+    const viewer = await requireMe(db, bartek);
+    const ids = Object.fromEntries((await listMembers(db, me.league.id)).map((m) => [m.name, m.id]));
+    const base = { id: "live1", target: 101, players: [ids.Ania, ids.Bartek] };
+
+    await publishLiveGame(db, me, { ...base, turns: [], rev: 1 });
+    await publishLiveGame(db, me, { ...base, turns: [{ scored: 40 }], rev: 3 });
+    expect((await publishLiveGame(db, me, { ...base, turns: [], rev: 2 })).updated).toBe(false);
+
+    const [g] = await liveGames(db, viewer.league.id);
+    expect(g).toMatchObject({ id: "live1", finished: false, scorer: { name: "Ania" } });
+    expect(g.state.turns).toHaveLength(1);
+    expect(g.state.players.map((p) => p.name)).toEqual(["Ania", "Bartek"]);
+
+    await publishLiveGame(db, me, { ...base, turns: [40, 101].map((s) => ({ scored: s })), rev: 4 });
+    expect((await liveGame(db, viewer.league.id, "live1"))?.finished).toBe(true);
+
+    await expect(
+      publishLiveGame(db, me, { ...base, turns: [{ scored: 999 }], rev: 5 }),
+    ).rejects.toThrow(/Nieprawidłowe/);
+
+    await deleteLiveGame(db, me, "live1");
+    expect(await liveGames(db, me.league.id)).toEqual([]);
+  });
+
   it("inna liga nie widzi ani nie zapisuje gier cudzej ligi", async () => {
     const obcy = newDeviceToken();
     await createLeague(db, obcy, "Inna", "Obcy");
@@ -117,6 +156,10 @@ describe.skipIf(!url)("liga w bazie", () => {
     const ids = (await listMembers(db, me.league.id)).map((m) => m.id);
     await expect(
       saveGame(db, other, { id: "x", target: 101, players: [ids[0]], turns: [{ scored: 101 }] }),
+    ).rejects.toThrow(/spoza ligi/);
+    expect(await liveGame(db, other.league.id, "live1")).toBeNull();
+    await expect(
+      publishLiveGame(db, other, { id: "y", target: 101, players: [ids[0]], turns: [], rev: 1 }),
     ).rejects.toThrow(/spoza ligi/);
   });
 });
