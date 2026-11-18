@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { useLeague } from "@/components/league/LeagueProvider";
+import { useLeague, usePlayerColors } from "@/components/league/LeagueProvider";
+import { accentBackground } from "@/lib/colors";
 import { currentPlayer, remainingFor, standings } from "@/lib/game/engine";
 import { useSeenFinished, useStoredGame } from "@/lib/game/storage";
 import { usePoll } from "@/lib/live/usePoll";
@@ -50,6 +51,7 @@ export function LiveBanners({ myId }: { myId: string }) {
 }
 
 function Banner({ game, myId }: { game: LiveGame; myId: string }) {
+  const colorOf = usePlayerColors();
   const href = `/na-zywo/${encodeURIComponent(game.id)}`;
   const { state } = game;
 
@@ -74,7 +76,8 @@ function Banner({ game, myId }: { game: LiveGame; myId: string }) {
     return (
       <Link
         href={href}
-        className="flex items-center gap-3 rounded-2xl bg-gradient-to-br from-red to-red-deep px-4 py-3 text-white shadow-lg shadow-red/20"
+        className="flex items-center gap-3 rounded-2xl px-4 py-3 text-white"
+        style={accentBackground(colorOf(myId))}
       >
         <span className="text-3xl" aria-hidden>
           🎯
@@ -96,8 +99,11 @@ function Banner({ game, myId }: { game: LiveGame; myId: string }) {
       className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-3 ring-1 ring-line active:bg-surface-2"
     >
       <span className="relative flex size-3 shrink-0" aria-hidden>
-        <span className="absolute inline-flex size-full animate-ping rounded-full bg-red opacity-60" />
-        <span className="relative inline-flex size-3 rounded-full bg-red" />
+        <span
+          className="absolute inline-flex size-full animate-ping rounded-full opacity-60"
+          style={{ backgroundColor: colorOf(player?.id) }}
+        />
+        <span className="relative inline-flex size-3 rounded-full" style={{ backgroundColor: colorOf(player?.id) }} />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block font-semibold">Trwa gra do {state.settings.target}</span>

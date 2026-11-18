@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { FinalStandings, GameStats } from "@/components/game/FinalStandings";
-import { useLeague } from "@/components/league/LeagueProvider";
+import { useLeague, usePlayerColors } from "@/components/league/LeagueProvider";
+import { PlayerDot } from "@/components/ui/PlayerDot";
+import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { currentPlayer, formatDarts, placeOf, remainingFor, standings } from "@/lib/game/engine";
@@ -66,16 +68,14 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
   const player = currentPlayer(state);
   const mine = player?.id === myId;
   const last = lastThrow(state);
+  const colorOf = usePlayerColors();
 
   return (
     <div className="flex flex-col gap-4">
       <section
         aria-live="polite"
-        className={`rounded-3xl px-4 py-4 text-center ${
-          mine
-            ? "bg-gradient-to-br from-red to-red-deep text-white shadow-lg shadow-red/20"
-            : "bg-surface ring-1 ring-line"
-        }`}
+        className="rounded-3xl px-4 py-4 text-center text-white"
+        style={player ? accentBackground(colorOf(player.id)) : undefined}
       >
         <p className="text-lg">
           {mine ? (
@@ -89,14 +89,12 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
         <p className="text-7xl leading-tight font-bold tabular-nums">
           {player ? remainingFor(state, player.id) : "–"}
         </p>
-        <p className={`text-sm uppercase tracking-wider ${mine ? "opacity-90" : "text-muted"}`}>
+        <p className="text-sm uppercase tracking-wider opacity-90">
           zostało · gra do {state.settings.target}
         </p>
         {last && (
           <p
-            className={`mx-auto mt-2 w-fit rounded-full px-3 py-0.5 text-sm font-medium ${
-              mine ? "bg-black/25" : last.bust ? "bg-red/10 text-red" : "bg-surface-2"
-            }`}
+            className="mx-auto mt-2 w-fit rounded-full bg-black/25 px-3 py-0.5 text-sm font-medium"
           >
             Ostatnio: {last.text}
           </p>
@@ -111,11 +109,12 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
             <li
               key={p.id}
               aria-current={active || undefined}
-              className={`flex min-h-12 items-center gap-2 rounded-xl px-3 ring-1 ${
-                active ? "bg-surface-2 ring-cream" : place ? "bg-surface/50 ring-line/50" : "bg-surface ring-line"
+              className={`flex min-h-12 items-center gap-2 rounded-xl px-3 ${
+                active ? "" : place ? "bg-surface/50 ring-1 ring-line/50" : "bg-surface ring-1 ring-line"
               }`}
+              style={active ? activeRowStyle(colorOf(p.id)) : undefined}
             >
-              <span className={`size-2 shrink-0 rounded-full ${active ? "bg-cream" : "bg-transparent"}`} />
+              <PlayerDot color={colorOf(p.id)} big={active} />
               <span className={`flex-1 truncate text-lg font-medium ${place ? "text-muted" : ""}`}>
                 {p.name}
                 {p.id === myId && <span className="font-normal text-muted"> (Ty)</span>}

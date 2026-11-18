@@ -12,6 +12,9 @@ import {
   undoLastTurn,
 } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
+import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { PlayerDot } from "@/components/ui/PlayerDot";
+import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { useEntryMode } from "@/lib/game/storage";
 import { DartPad } from "./DartPad";
 import { Keypad } from "./Keypad";
@@ -30,6 +33,7 @@ export function PlayView({
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [mode] = useEntryMode();
+  const colorOf = usePlayerColors();
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
@@ -64,7 +68,10 @@ export function PlayView({
   return (
     <main className="screen-fit wide mx-auto flex w-full max-w-xl flex-col gap-3 land:max-w-none land:grid land:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] land:grid-rows-[auto_minmax(0,1fr)] land:gap-x-8 land:gap-y-4">
       {/* Najważniejsze: kto rzuca i ile mu zostało. */}
-      <section className="shrink-0 rounded-3xl bg-gradient-to-br from-red to-red-deep px-3 pt-2 pb-2.5 text-center text-white shadow-lg shadow-red/20">
+      <section
+        className="shrink-0 rounded-3xl px-3 pt-2 pb-2.5 text-center text-white transition-[background-image] duration-300"
+        style={accentBackground(colorOf(player.id))}
+      >
         <div className="flex items-center justify-between">
           <Link
             href="/"
@@ -110,12 +117,13 @@ export function PlayView({
             <li
               key={p.id}
               aria-current={active || undefined}
-              className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-1 ring-1 land:py-2 ${
-                active ? "bg-surface-2 ring-cream" : place ? "bg-surface/50 ring-line/50" : "bg-surface ring-line"
+              className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-1 land:py-2 ${
+                active ? "" : place ? "bg-surface/50 ring-1 ring-line/50" : "bg-surface ring-1 ring-line"
               }`}
+              style={active ? activeRowStyle(colorOf(p.id)) : undefined}
             >
-              <span className={`size-2 shrink-0 rounded-full ${active ? "bg-cream" : "bg-transparent"}`} />
-              <span className={`flex-1 truncate font-medium land:text-xl ${place ? "text-muted" : ""}`}>{p.name}</span>
+              <PlayerDot color={colorOf(p.id)} big={active} />
+              <span className={`flex-1 truncate land:text-xl ${active ? "font-bold" : "font-medium"} ${place ? "text-muted" : ""}`}>{p.name}</span>
               {place ? (
                 <span className="text-lg font-bold" aria-label={`${place}. miejsce`}>
                   {MEDALS[place - 1] ?? `${place}.`}

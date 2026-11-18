@@ -84,6 +84,9 @@ describe.skipIf(!url)("liga w bazie", () => {
     const members = await listMembers(db, me.league.id);
     expect(members.filter((m) => m.isOrganizer).map((m) => m.name)).toEqual(["Bartek"]);
     await expect(makeOrganizer(db, await requireMe(db, ania), me.member.id)).rejects.toThrow(/organizator/);
+    // Kolory: każdy gracz ligi ma inny numer, w kolejności dołączenia.
+    const colors = (await listMembers(db, me.league.id)).map((m) => m.color).sort();
+    expect(colors).toEqual(colors.map((_, i) => i));
   });
 
   it("zapis gry, ranking i usunięcie gry", async () => {

@@ -1,3 +1,7 @@
+"use client";
+
+import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { PlayerDot } from "@/components/ui/PlayerDot";
 import { playerStats, standings } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
 
@@ -13,6 +17,7 @@ export const fmt = (n: number) => n.toFixed(1).replace(".", ",");
 
 /** Klasyfikacja zakończonej gry (ekran wyników i podgląd na żywo). */
 export function FinalStandings({ game, myId }: { game: GameState; myId?: string }) {
+  const colorOf = usePlayerColors();
   return (
     <ol className="flex flex-col gap-2" aria-label="Klasyfikacja">
       {standings(game).map((s) => {
@@ -28,9 +33,10 @@ export function FinalStandings({ game, myId }: { game: GameState; myId?: string 
               {MEDALS[s.place - 1] ?? <span className="font-mono text-lg text-muted">{s.place}.</span>}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-lg font-semibold">
-                {s.player.name}
-                {s.player.id === myId && <span className="font-normal text-muted"> (Ty)</span>}
+              <span className="flex min-w-0 items-center gap-2 text-lg font-semibold">
+                <PlayerDot color={colorOf(s.player.id)} />
+                <span className="truncate">{s.player.name}</span>
+                {s.player.id === myId && <span className="shrink-0 font-normal text-muted">(Ty)</span>}
               </span>
               <span className="block text-sm text-muted">
                 {stats.series} {seriesWord(stats.series)}

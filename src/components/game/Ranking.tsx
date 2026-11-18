@@ -1,11 +1,14 @@
 "use client";
 
+import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { PlayerDot } from "@/components/ui/PlayerDot";
 import type { RankingRow } from "@/lib/game/history";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 /** Ranking graczy ligi z ostatnich gier. */
 export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: number; myId?: string }) {
+  const colorOf = usePlayerColors();
   if (rows.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-line p-4 text-center text-sm text-muted">
@@ -44,6 +47,7 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
                 </td>
                 <td className="py-2 pl-2">
                   <span className="flex min-w-0 items-center gap-1.5">
+                    <PlayerDot color={colorOf(r.id)} />
                     <span className={`truncate ${me ? "font-bold" : "font-medium"}`}>{r.name}</span>
                     {me && (
                       <span className="shrink-0 rounded-full bg-cream px-1.5 text-[11px] font-bold text-board">TY</span>

@@ -19,6 +19,8 @@ export interface Member {
   name: string;
   isOrganizer: boolean;
   hasDevice: boolean;
+  /** Numer koloru gracza w lidze (kolejność dołączenia), patrz lib/colors. */
+  color: number;
 }
 
 export interface League {
@@ -110,7 +112,7 @@ export async function createLeague(db: Db, token: string, leagueName: unknown, p
 export async function whoAmI(db: Db, token: string | undefined): Promise<Me | null> {
   if (!token) return null;
   const { rows } = await db.query(
-    `select m.id, m.name, m.is_organizer, l.id as league_id, l.name as league_name, l.join_code
+    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, l.id as league_id, l.name as league_name, l.join_code
        from devices d join members m on m.id = d.member_id join leagues l on l.id = m.league_id
       where d.token_hash = $1`,
     [hashToken(token)],
@@ -120,7 +122,7 @@ export async function whoAmI(db: Db, token: string | undefined): Promise<Me | nu
   await db.query("update devices set last_seen = now() where token_hash = $1", [hashToken(token)]);
   return {
     league: { id: r.league_id, name: r.league_name, joinCode: r.join_code },
-    member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true },
+    member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true, color: r.color },
   };
 }
 
@@ -136,7 +138,7 @@ function requireOrganizer(me: Me) {
 
 export async function listMembers(db: Db, leagueId: string): Promise<Member[]> {
   const { rows } = await db.query(
-    `select m.id, m.name, m.is_organizer, exists (select 1 from devices d where d.member_id = m.id) as has_device
+    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, exists (select 1 from devices d where d.member_id = m.id) as has_device
        from members m where m.league_id = $1 order by m.is_organizer desc, lower(m.name)`,
     [leagueId],
   );
@@ -145,6 +147,7 @@ export async function listMembers(db: Db, leagueId: string): Promise<Member[]> {
     name: r.name,
     isOrganizer: r.is_organizer,
     hasDevice: r.has_device,
+    color: r.color,
   }));
 }
 
@@ -177,7 +180,7 @@ export async function joinLeague(db: Db, token: string, code: string, playerName
 export async function addMember(db: Db, me: Me, playerName: unknown): Promise<Member> {
   const name = cleanName(playerName);
   const id = await insertMember(db, me.league.id, name);
-  return { id, name, isOrganizer: false, hasDevice: false };
+  return (await listMembers(db, me.league.id)).find((m) => m.id === id)!;
 }
 
 /** Organizator tworzy jednorazowy link, który przypisuje gracza do nowego telefonu. */
