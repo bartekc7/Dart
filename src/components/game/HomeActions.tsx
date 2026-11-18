@@ -11,7 +11,19 @@ export function HomeActions() {
   const router = useRouter();
   const inProgress = game && !isGameOver(game);
 
-  if (!inProgress) return <ButtonLink href="/gra">Nowa gra</ButtonLink>;
+  if (!inProgress) {
+    // Zakończona gra zostaje w telefonie (wyniki, cofnięcie), ale „Nowa gra” zaczyna od zera.
+    return (
+      <Button
+        onClick={() => {
+          if (game) setGame(null);
+          router.push("/gra");
+        }}
+      >
+        Nowa gra
+      </Button>
+    );
+  }
 
   return (
     <>
