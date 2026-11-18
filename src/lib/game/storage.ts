@@ -3,6 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { isGameState } from "./engine";
 import type { GameRecord } from "./history";
+import { applyTheme, isTheme, THEME_KEY, type Theme } from "../theme";
 import type { GameState } from "./types";
 
 /**
@@ -73,4 +74,18 @@ export function useHistory(): [GameRecord[] | undefined, (v: GameRecord[]) => vo
   const [raw, set] = useStored<GameRecord[]>(HISTORY_KEY);
   const history = raw === undefined ? undefined : Array.isArray(raw) ? raw : [];
   return [history, set as (v: GameRecord[]) => void];
+}
+
+/** Wybrany motyw (domyślnie systemowy). Zmiana od razu przełącza wygląd. */
+export function useTheme(): [Theme, (t: Theme) => void] {
+  const [raw, set] = useStored<Theme>(THEME_KEY);
+  const theme = isTheme(raw) ? raw : "system";
+  const setTheme = useCallback(
+    (t: Theme) => {
+      applyTheme(t);
+      set(t);
+    },
+    [set],
+  );
+  return [theme, setTheme];
 }
