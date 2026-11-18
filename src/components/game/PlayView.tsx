@@ -42,6 +42,8 @@ export function PlayView({
           ? { text: `${player.name} kończy na ${place}. miejscu! 🎯`, bust: false }
           : { text: `${player.name}: +${score}, zostało ${remainingFor(next, player.id)}`, bust: false },
     );
+    // Krótkie potwierdzenie dotykiem (Android; iPhone nie obsługuje wibracji w przeglądarce).
+    vibrate(turn.bust ? [70, 50, 70] : place ? [30, 40, 120] : 15);
     setInput("");
     onChange(next);
   }
@@ -132,8 +134,14 @@ export function PlayView({
       </ol>
 
       <div className="shrink-0">
-        <Keypad value={input} onChange={setInput} onSubmit={submit} />
+        <Keypad value={input} onChange={setInput} onSubmit={submit} remaining={remaining} />
       </div>
     </main>
   );
+}
+
+function vibrate(pattern: number | number[]) {
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {}
 }
