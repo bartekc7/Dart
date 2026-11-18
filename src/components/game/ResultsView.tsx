@@ -6,7 +6,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { rematch, standings, undoLastTurn } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
-import { FinalStandings } from "./FinalStandings";
+import { FinalStandings, GameStats } from "./FinalStandings";
 
 type Save = { status: "saving" } | { status: "saved" } | { status: "error"; message: string };
 
@@ -61,29 +61,27 @@ export function ResultsView({
   const winner = table[0];
 
   return (
-    <main className="flex flex-1 flex-col">
-      <section className="flex flex-col items-center pt-6 text-center">
-        <p className="text-6xl">🏆</p>
-        <h1 className="mt-3 text-3xl font-bold">{winner.player.name} wygrywa!</h1>
-        <p className="mt-1 text-muted">Gra do {game.settings.target} · klasyfikacja końcowa</p>
+    <main className="flex flex-1 flex-col gap-4">
+      <section className="flex flex-col items-center pt-2 text-center">
+        <h1 className="text-3xl font-bold">🏆 {winner.player.name} wygrywa!</h1>
+        <p className="mt-1 text-muted">Gra do {game.settings.target}</p>
         <SaveStatus save={save} onRetry={saveGame} />
       </section>
 
       <FinalStandings game={game} />
+      <GameStats game={game} />
 
-      <div className="mt-auto flex flex-col gap-3 pt-6">
-        <Button onClick={() => onChange(rematch(game))}>Rewanż</Button>
-        <Button variant="secondary" onClick={() => onChange(null)}>
-          Nowa gra
-        </Button>
-        <ButtonLink href="/" variant="ghost">
+      <div className="mt-auto flex flex-col gap-2 pt-2">
+        <div className="grid grid-cols-2 gap-2">
+          <Button onClick={() => onChange(rematch(game))}>Rewanż</Button>
+          <Button variant="secondary" onClick={() => onChange(null)}>
+            Nowa gra
+          </Button>
+        </div>
+        <ButtonLink href="/" variant="secondary">
           Wróć do rankingu
         </ButtonLink>
-        <button
-          type="button"
-          onClick={undo}
-          className="py-2 text-sm text-muted"
-        >
+        <button type="button" onClick={undo} className="py-2 text-sm text-muted">
           ↶ Pomyłka? Cofnij ostatnią serię
         </button>
         {undoError && <p className="text-center text-sm text-red">{undoError}</p>}

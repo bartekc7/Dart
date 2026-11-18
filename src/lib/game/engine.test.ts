@@ -8,6 +8,7 @@ import {
   isGameState,
   lastTurnOf,
   placeOf,
+  playerStats,
   rematch,
   remainingFor,
   standings,
@@ -106,5 +107,15 @@ describe("pomocnicze", () => {
     expect(isGameState(createGame(players))).toBe(true);
     expect(isGameState({ ...createGame(players), winnerId: null })).toBe(false);
     expect(isGameState(null)).toBe(false);
+  });
+});
+
+describe("statystyki gracza", () => {
+  it("średnia na serię liczy też przekroczenia jako serię za 0", () => {
+    // Ania: 60, 50 (przekroczenie: 110 > 101), 41 → 101
+    const g = play(createGame(players.slice(0, 2), 101), 60, 10, 50, 10, 41);
+    expect(playerStats(g, "a")).toEqual({ series: 3, points: 101, average: 101 / 3, best: 60, busts: 1 });
+    expect(playerStats(g, "b")).toMatchObject({ series: 2, points: 20, best: 10, busts: 0 });
+    expect(playerStats(createGame(players, 101), "c").average).toBe(0);
   });
 });

@@ -155,3 +155,29 @@ export function isGameState(value: unknown): value is GameState {
     !("winnerId" in g)
   );
 }
+
+export interface PlayerStats {
+  /** Liczba rzuconych serii (z przekroczeniami). */
+  series: number;
+  /** Zdobyte punkty (bez serii, które się nie liczyły). */
+  points: number;
+  /** Średnio punktów na serię (0, gdy brak serii). */
+  average: number;
+  /** Najlepsza zaliczona seria. */
+  best: number;
+  /** Ile serii przekroczyło cel. */
+  busts: number;
+}
+
+export function playerStats(state: GameState, playerId: PlayerId): PlayerStats {
+  const turns = state.turns.filter((t) => t.playerId === playerId);
+  const counted = turns.filter((t) => !t.bust);
+  const points = counted.reduce((sum, t) => sum + t.scored, 0);
+  return {
+    series: turns.length,
+    points,
+    average: turns.length ? points / turns.length : 0,
+    best: counted.reduce((m, t) => Math.max(m, t.scored), 0),
+    busts: turns.length - counted.length,
+  };
+}
