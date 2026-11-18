@@ -57,3 +57,16 @@ export function undoLastTurn(state: GameState): GameState {
   if (state.turns.length === 0) return state;
   return { ...state, turns: state.turns.slice(0, -1), winnerId: null };
 }
+
+/** Ostatnia seria gracza (do pokazania przy wyniku), albo null. */
+export function lastTurnOf(state: GameState, playerId: PlayerId): Turn | null {
+  for (let i = state.turns.length - 1; i >= 0; i--) {
+    if (state.turns[i].playerId === playerId) return state.turns[i];
+  }
+  return null;
+}
+
+/** Nowa gra z tymi samymi graczami i celem. */
+export function rematch(state: GameState): GameState {
+  return createGame(state.players, state.settings.target);
+}

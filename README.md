@@ -17,6 +17,7 @@ npm run build   # build produkcyjny
 | Ścieżka | Co tam jest |
 | --- | --- |
 | `src/app/` | Ekrany (Next.js App Router): start `/`, gra `/gra` |
+| `src/components/game/` | Ekrany gry: ustawienia, rozgrywka z klawiaturą, zwycięzca |
 | `src/components/ui/` | Wspólne elementy UI (przyciski, nagłówek) |
 | `src/lib/game/` | Logika gry niezależna od UI: kolejka, „zostało X”, przekroczenie = seria się nie liczy |
 
@@ -25,8 +26,8 @@ też przy zapisie gier do bazy i podglądzie na żywo.
 
 ## Plan
 
-1. ✅ Szkielet aplikacji (ten krok)
-2. Rozgrywka na jednym telefonie: gracze, kolejność, cel, wpis serii, „zostało X”
+1. ✅ Szkielet aplikacji
+2. ✅ Rozgrywka na jednym telefonie: gracze, kolejność, cel, wpis serii, „zostało X”
 3. Zapis gier w bazie (Neon Postgres)
 4. Opcjonalnie: podgląd na żywo na telefonach graczy
 
