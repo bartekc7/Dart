@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   applyTurn,
+  canEndEarly,
   currentPlayer,
+  endGame,
   formatDarts,
   lastTurnOf,
   placeOf,
@@ -33,6 +35,7 @@ export function PlayView({
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [mode] = useEntryMode();
+  const [confirmEnd, setConfirmEnd] = useState(false);
   const colorOf = usePlayerColors();
 
   const player = currentPlayer(game)!;
@@ -54,6 +57,13 @@ export function PlayView({
     vibrate(turn.bust ? [70, 50, 70] : place ? [30, 40, 120] : 15);
     setInput("");
     onChange(next);
+  }
+
+  function finishNow() {
+    setConfirmEnd(false);
+    if (!canEndEarly(game)) return;
+    vibrate([30, 40, 120]);
+    onChange(endGame(game));
   }
 
   function undo() {
@@ -143,11 +153,43 @@ export function PlayView({
             </li>
           );
         })}
+        {canEndEarly(game) && (
+          <li className="col-span-full pt-1">
+            <button
+              type="button"
+              onClick={() => setConfirmEnd(!confirmEnd)}
+              aria-expanded={confirmEnd}
+              className="w-full rounded-xl border border-dashed border-line py-2 text-sm font-semibold text-muted active:bg-surface-2"
+            >
+              🏁 Zakończ grę teraz
+            </button>
+          </li>
+        )}
       </ol>
 
       {/* Na tablecie i komputerze klawiatura zajmuje prawą kolumnę na całą wysokość. */}
       <div className="shrink-0 land:col-start-2 land:row-span-2 land:row-start-1 land:flex land:min-h-0 land:flex-col">
-        {mode === "darts" ? (
+        {confirmEnd && canEndEarly(game) ? (
+          // Potwierdzenie w miejscu klawiatury, żeby zawsze było widać przyciski.
+          <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4 ring-1 ring-line">
+            <p className="text-lg font-semibold">Zakończyć grę teraz?</p>
+            <p className="text-muted">
+              Pozostali gracze dostaną miejsca według tego, ile im zostało. Gra trafi do rankingu.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmEnd(false)}
+                className="min-h-14 rounded-2xl bg-surface text-lg font-semibold ring-1 ring-line"
+              >
+                Gramy dalej
+              </button>
+              <button type="button" onClick={finishNow} className="min-h-14 rounded-2xl bg-green text-lg font-semibold text-white">
+                Zakończ
+              </button>
+            </div>
+          </div>
+        ) : mode === "darts" ? (
           // key: nowa seria (także po cofnięciu) zaczyna od pustych rzutek.
           <DartPad key={game.turns.length} remaining={remaining} onSubmit={submit} />
         ) : (

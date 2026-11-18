@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { applyTurn, createGame, isGameOver, standings } from "../game/engine";
+import { applyTurn, createGame, endGame, isGameOver, standings } from "../game/engine";
 import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
 import type { GameState, Turn } from "../game/types";
 import type { Db } from "./db";
@@ -238,6 +238,8 @@ export interface GameInput {
   target?: unknown;
   players?: unknown;
   turns?: unknown;
+  /** true = gra zakończona przyciskiem „Zakończ grę”. */
+  ended?: unknown;
 }
 
 /**
@@ -263,6 +265,7 @@ async function replayGame(db: Db, me: Me, input: GameInput): Promise<GameState> 
       const darts = Array.isArray(t?.darts) ? t.darts.map(Number) : undefined;
       state = applyTurn(state, Number(t?.scored), darts);
     }
+    if (input.ended === true) state = endGame(state);
   } catch {
     throw new UserError("Nieprawidłowe serie w grze.");
   }

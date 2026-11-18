@@ -32,6 +32,7 @@ export function ResultsView({
           target: game.settings.target,
           players: game.players.map((p) => p.id),
           turns: game.turns,
+          ended: game.endedEarly === true,
         },
       });
       setSave({ status: "saved" });
@@ -82,7 +83,7 @@ export function ResultsView({
           Wróć do rankingu
         </ButtonLink>
         <button type="button" onClick={undo} className="py-2 text-sm text-muted">
-          ↶ Pomyłka? Cofnij ostatnią serię
+          {game.endedEarly ? "↶ Pomyłka? Wróć do gry" : "↶ Pomyłka? Cofnij ostatnią serię"}
         </button>
         {undoError && <p className="text-center text-sm text-red">{undoError}</p>}
       </div>
