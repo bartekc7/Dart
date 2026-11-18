@@ -20,6 +20,7 @@ import {
   recentGamesOf,
   requireMe,
   saveGame,
+  setEntryMode,
   whoAmI,
 } from "./league";
 
@@ -75,6 +76,16 @@ describe.skipIf(!url)("liga w bazie", () => {
     await claimDevice(db, nowyTelefonAni, claim);
     expect((await requireMe(db, nowyTelefonAni)).member.name).toBe("Ania");
     await expect(claimDevice(db, newDeviceToken(), claim)).rejects.toThrow(/wygasł albo został już użyty/);
+  });
+
+  it("sposób wpisywania punktów zmienia tylko organizator", async () => {
+    const me = await requireMe(db, ania);
+    expect(me.league.entryMode).toBe("sum");
+    await expect(setEntryMode(db, await requireMe(db, bartek), "darts")).rejects.toThrow(/organizator/);
+    await expect(setEntryMode(db, me, "xyz")).rejects.toThrow(/Nieznany/);
+    await setEntryMode(db, me, "darts");
+    expect((await requireMe(db, bartek)).league.entryMode).toBe("darts");
+    await setEntryMode(db, me, "sum");
   });
 
   it("przekazanie roli organizatora", async () => {

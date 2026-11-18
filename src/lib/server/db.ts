@@ -84,6 +84,7 @@ create table if not exists live_games (
   updated_at timestamptz not null default now()
 );
 create index if not exists live_games_league on live_games (league_id, updated_at desc);
+alter table leagues add column if not exists entry_mode text not null default 'sum';
 `;
 
 export async function ensureSchema(db: Db) {

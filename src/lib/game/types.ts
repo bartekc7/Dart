@@ -58,3 +58,6 @@ export interface Placement {
   /** true, gdy trafił równo w cel. */
   finished: boolean;
 }
+
+/** Jak wpisywać serię: sama suma (domyślnie) albo każda z trzech rzutek osobno. */
+export type EntryMode = "sum" | "darts";

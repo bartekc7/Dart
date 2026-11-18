@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { applyTurn, createGame, endGame, isGameOver, standings } from "../game/engine";
 import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
-import type { GameState, Turn } from "../game/types";
+import type { EntryMode, GameState, Turn } from "../game/types";
 import type { Db } from "./db";
 
 /** Błąd, który pokazujemy użytkownikowi wprost (z kodem HTTP). */
@@ -27,6 +27,12 @@ export interface League {
   id: string;
   name: string;
   joinCode: string;
+  /** Sposób wpisywania punktów w lidze; zmienia go tylko organizator. */
+  entryMode: EntryMode;
+}
+
+function toEntryMode(v: unknown): EntryMode {
+  return v === "darts" ? "darts" : "sum";
 }
 
 export interface Me {
@@ -112,7 +118,7 @@ export async function createLeague(db: Db, token: string, leagueName: unknown, p
 export async function whoAmI(db: Db, token: string | undefined): Promise<Me | null> {
   if (!token) return null;
   const { rows } = await db.query(
-    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, l.id as league_id, l.name as league_name, l.join_code
+    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, l.id as league_id, l.name as league_name, l.join_code, l.entry_mode
        from devices d join members m on m.id = d.member_id join leagues l on l.id = m.league_id
       where d.token_hash = $1`,
     [hashToken(token)],
@@ -121,7 +127,7 @@ export async function whoAmI(db: Db, token: string | undefined): Promise<Me | nu
   if (!r) return null;
   await db.query("update devices set last_seen = now() where token_hash = $1", [hashToken(token)]);
   return {
-    league: { id: r.league_id, name: r.league_name, joinCode: r.join_code },
+    league: { id: r.league_id, name: r.league_name, joinCode: r.join_code, entryMode: toEntryMode(r.entry_mode) },
     member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true, color: r.color },
   };
 }
@@ -152,10 +158,10 @@ export async function listMembers(db: Db, leagueId: string): Promise<Member[]> {
 }
 
 export async function leagueByCode(db: Db, code: string): Promise<League | null> {
-  const { rows } = await db.query("select id, name, join_code from leagues where join_code = $1", [
+  const { rows } = await db.query("select id, name, join_code, entry_mode from leagues where join_code = $1", [
     code.toUpperCase(),
   ]);
-  return rows[0] ? { id: rows[0].id, name: rows[0].name, joinCode: rows[0].join_code } : null;
+  return rows[0] ? { id: rows[0].id, name: rows[0].name, joinCode: rows[0].join_code, entryMode: toEntryMode(rows[0].entry_mode) } : null;
 }
 
 /** Dołączenie po linku: nowy gracz z podaną nazwą, przypisany do tego urządzenia. */
@@ -223,6 +229,13 @@ export async function makeOrganizer(db: Db, me: Me, memberId: string) {
     me.league.id,
     memberId,
   ]);
+}
+
+/** Organizator ustala, jak w lidze wpisuje się punkty serii. */
+export async function setEntryMode(db: Db, me: Me, mode: unknown) {
+  requireOrganizer(me);
+  if (mode !== "sum" && mode !== "darts") throw new UserError("Nieznany sposób wpisywania punktów.");
+  await db.query("update leagues set entry_mode = $2 where id = $1", [me.league.id, mode]);
 }
 
 async function requireMemberOfLeague(db: Db, leagueId: string, memberId: string) {

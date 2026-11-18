@@ -1,15 +1,38 @@
 "use client";
 
-import { useEntryMode, type EntryMode } from "@/lib/game/storage";
+import { useState } from "react";
+import { useEntryMode, useLeague } from "@/components/league/LeagueProvider";
+import { api } from "@/lib/api";
+import type { EntryMode } from "@/lib/game/types";
 
 const MODES: { value: EntryMode; label: string; hint: string }[] = [
   { value: "sum", label: "Suma serii", hint: "jedna liczba za 3 rzutki" },
   { value: "darts", label: "Każda rzutka osobno", hint: "3 liczby" },
 ];
 
-/** Wybór sposobu wpisywania punktów na tym telefonie. */
+/** Sposób wpisywania punktów w lidze. Widzi i zmienia go tylko organizator. */
 export function EntryModePicker() {
-  const [mode, setMode] = useEntryMode();
+  const { state, refresh } = useLeague();
+  const saved = useEntryMode();
+  const [pending, setPending] = useState<EntryMode | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (state.status !== "ready" || !state.data.me?.member.isOrganizer) return null;
+  const mode = pending ?? saved;
+
+  async function choose(m: EntryMode) {
+    if (m === mode) return;
+    setPending(m);
+    setError(null);
+    try {
+      await api("/api/league/settings", { body: { entryMode: m } });
+      await refresh();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(null);
+    }
+  }
 
   return (
     <section aria-labelledby="entry-title">
@@ -25,7 +48,8 @@ export function EntryModePicker() {
               type="button"
               role="radio"
               aria-checked={checked}
-              onClick={() => setMode(m.value)}
+              disabled={pending !== null}
+              onClick={() => choose(m.value)}
               className={`flex min-h-14 items-center gap-3 rounded-2xl px-4 text-left text-lg ring-1 ${
                 checked ? "bg-surface-2 font-semibold ring-2 ring-cream" : "bg-surface ring-line"
               }`}
@@ -44,9 +68,13 @@ export function EntryModePicker() {
           );
         })}
       </div>
-      <p className="mt-2 text-sm text-muted">
-        Dotyczy tego telefonu. Przekroczenie liczymy zawsze po sumie serii.
-      </p>
+      {error ? (
+        <p role="alert" className="mt-2 text-sm text-red">{error}</p>
+      ) : (
+        <p className="mt-2 text-sm text-muted">
+          Ustawienie ligi, obowiązuje na wszystkich telefonach. Zmienia je tylko organizator.
+        </p>
+      )}
     </section>
   );
 }

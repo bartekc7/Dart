@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { api, ApiError } from "@/lib/api";
 import { playerColor } from "@/lib/colors";
 import type { RankingRow } from "@/lib/game/history";
+import type { EntryMode } from "@/lib/game/types";
 import type { Me, Member, MyGame } from "@/lib/server/league";
 
 export interface LeagueData {
@@ -77,4 +78,13 @@ export function usePlayerColors(): (id: string | undefined) => string {
     for (const ch of id ?? "") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
     return playerColor(h);
   };
+}
+
+/**
+ * Sposób wpisywania punktów w lidze (ustawia organizator, obowiązuje na
+ * wszystkich telefonach). Bez ligi: suma serii.
+ */
+export function useEntryMode(): EntryMode {
+  const { state } = useLeague();
+  return state.status === "ready" ? (state.data.me?.league.entryMode ?? "sum") : "sum";
 }
