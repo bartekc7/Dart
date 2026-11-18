@@ -6,6 +6,7 @@ import { useLeague } from "./LeagueProvider";
 import { LiveBanners } from "@/components/live/LiveBanners";
 import { MyGames } from "./MyGames";
 import { LoadError, Loading } from "./StatusScreens";
+import { InstallHint } from "@/components/InstallHint";
 import { HomeHeader } from "./HomeHeader";
 import { Welcome } from "./Welcome";
 
@@ -41,6 +42,7 @@ export function HomeScreen() {
 
       <Ranking rows={ranking.rows} games={ranking.games} myId={me.member.id} />
       <MyGames games={myGames} />
+      <InstallHint />
     </>
   );
 }
