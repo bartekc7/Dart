@@ -89,17 +89,45 @@ export function isValidTurnScore(score: number): boolean {
   return Number.isInteger(score) && score >= 0 && score <= MAX_SCORE_PER_TURN;
 }
 
-/** Zapisuje serię bieżącego gracza i zwraca nowy stan (bez mutacji). */
-export function applyTurn(state: GameState, score: number): GameState {
+export const DARTS_PER_TURN = 3;
+
+/**
+ * Czy tyle punktów da się zdobyć jedną rzutką: 0 (pudło), pole 1–20,
+ * podwójne (do 40), potrójne (do 60), 25 i 50 (środek).
+ */
+export function isValidDart(v: number): boolean {
+  if (!Number.isInteger(v) || v < 0) return false;
+  return v <= 20 || v === 25 || v === 50 || (v <= 40 && v % 2 === 0) || (v <= 60 && v % 3 === 0);
+}
+
+/** Rzutki pojedynczej serii: 1–3 poprawne wartości. */
+export function isValidDarts(darts: number[]): boolean {
+  return darts.length >= 1 && darts.length <= DARTS_PER_TURN && darts.every(isValidDart);
+}
+
+/** „20 + 60 + 5” do pokazania serii wpisanej rzutka po rzutce. */
+export function formatDarts(darts: number[]): string {
+  return darts.join(" + ");
+}
+
+/**
+ * Zapisuje serię bieżącego gracza i zwraca nowy stan (bez mutacji).
+ * `darts` (opcjonalnie) to punkty z kolejnych rzutek; ich suma musi
+ * równać się `score`. Przekroczenie liczymy zawsze po sumie serii.
+ */
+export function applyTurn(state: GameState, score: number, darts?: number[]): GameState {
   const player = currentPlayer(state);
   if (!player) throw new Error("Gra jest już zakończona.");
   if (!isValidTurnScore(score))
     throw new Error(`Wynik serii musi być liczbą od 0 do ${MAX_SCORE_PER_TURN}.`);
+  if (darts !== undefined && (!isValidDarts(darts) || darts.reduce((a, b) => a + b, 0) !== score))
+    throw new Error("Nieprawidłowe rzutki w serii.");
 
   const turn: Turn = {
     playerId: player.id,
     scored: score,
     bust: score > remainingFor(state, player.id),
+    ...(darts ? { darts: [...darts] } : {}),
   };
   return { ...state, turns: [...state.turns, turn] };
 }

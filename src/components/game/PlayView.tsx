@@ -5,12 +5,15 @@ import { useState } from "react";
 import {
   applyTurn,
   currentPlayer,
+  formatDarts,
   lastTurnOf,
   placeOf,
   remainingFor,
   undoLastTurn,
 } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
+import { useEntryMode } from "@/lib/game/storage";
+import { DartPad } from "./DartPad";
 import { Keypad } from "./Keypad";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -26,21 +29,22 @@ export function PlayView({
 }) {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [mode] = useEntryMode();
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
 
-  function submit() {
-    const score = Number(input);
-    const next = applyTurn(game, score);
+  function submit(score: number, darts?: number[]) {
+    const next = applyTurn(game, score, darts);
     const turn = next.turns.at(-1)!;
     const place = placeOf(next, player.id);
+    const shown = darts && darts.length > 1 ? `${formatDarts(darts)} = ${score}` : String(score);
     setFeedback(
       turn.bust
-        ? { text: `${player.name}: ${score} – za dużo, nie liczy się`, bust: true }
+        ? { text: `${player.name}: ${shown} – za dużo, nie liczy się`, bust: true }
         : place
           ? { text: `${player.name} kończy na ${place}. miejscu! 🎯`, bust: false }
-          : { text: `${player.name}: +${score}, zostało ${remainingFor(next, player.id)}`, bust: false },
+          : { text: `${player.name}: ${darts && darts.length > 1 ? shown : `+${shown}`}, zostało ${remainingFor(next, player.id)}`, bust: false },
     );
     // Krótkie potwierdzenie dotykiem (Android; iPhone nie obsługuje wibracji w przeglądarce).
     vibrate(turn.bust ? [70, 50, 70] : place ? [30, 40, 120] : 15);
@@ -135,7 +139,12 @@ export function PlayView({
 
       {/* Na tablecie i komputerze klawiatura zajmuje prawą kolumnę na całą wysokość. */}
       <div className="shrink-0 land:col-start-2 land:row-span-2 land:row-start-1 land:flex land:min-h-0 land:flex-col">
-        <Keypad value={input} onChange={setInput} onSubmit={submit} remaining={remaining} />
+        {mode === "darts" ? (
+          // key: nowa seria (także po cofnięciu) zaczyna od pustych rzutek.
+          <DartPad key={game.turns.length} remaining={remaining} onSubmit={submit} />
+        ) : (
+          <Keypad value={input} onChange={setInput} onSubmit={() => submit(Number(input))} remaining={remaining} />
+        )}
       </div>
     </main>
   );

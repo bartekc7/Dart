@@ -6,7 +6,7 @@ import { FinalStandings, GameStats } from "@/components/game/FinalStandings";
 import { useLeague } from "@/components/league/LeagueProvider";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { currentPlayer, placeOf, remainingFor, standings } from "@/lib/game/engine";
+import { currentPlayer, formatDarts, placeOf, remainingFor, standings } from "@/lib/game/engine";
 import { useSeenFinished } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
 import { usePoll } from "@/lib/live/usePoll";
@@ -53,11 +53,12 @@ function lastThrow(state: GameState) {
   const t = state.turns.at(-1);
   if (!t) return null;
   const who = state.players.find((p) => p.id === t.playerId)?.name;
-  if (t.bust) return { text: `${who}: ${t.scored} – za dużo, nie liczy się`, bust: true };
+  const shown = t.darts && t.darts.length > 1 ? `${formatDarts(t.darts)} = ${t.scored}` : String(t.scored);
+  if (t.bust) return { text: `${who}: ${shown} – za dużo, nie liczy się`, bust: true };
   const place = placeOf(state, t.playerId);
   if (place && remainingFor(state, t.playerId) === 0)
     return { text: `${who} kończy na ${place}. miejscu! 🎯`, bust: false };
-  return { text: `${who}: +${t.scored}`, bust: false };
+  return { text: `${who}: ${t.darts && t.darts.length > 1 ? shown : `+${shown}`}`, bust: false };
 }
 
 function Playing({ game, myId }: { game: LiveGame; myId: string }) {

@@ -256,7 +256,10 @@ async function replayGame(db: Db, me: Me, input: GameInput): Promise<GameState> 
 
   let state = createGame(playerIds.map((p) => ({ id: p, name: byId.get(p)!.name })), target);
   try {
-    for (const t of turns) state = applyTurn(state, Number(t?.scored));
+    for (const t of turns) {
+      const darts = Array.isArray(t?.darts) ? t.darts.map(Number) : undefined;
+      state = applyTurn(state, Number(t?.scored), darts);
+    }
   } catch {
     throw new UserError("Nieprawidłowe serie w grze.");
   }

@@ -109,6 +109,19 @@ describe.skipIf(!url)("liga w bazie", () => {
       /Nieprawidłowe/,
     );
 
+    // Rzutki: suma musi się zgadzać, a każda wartość być możliwa jedną rzutką.
+    const withDarts = (first: number[]) => ({
+      ...game,
+      id: "g4",
+      turns: [{ scored: 101, darts: first }, { scored: 50 }, { scored: 101, darts: [51, 50] }],
+    });
+    await expect(saveGame(db, me, withDarts([60, 40]))).rejects.toThrow(/Nieprawidłowe/);
+    await expect(saveGame(db, me, withDarts([60, 41]))).rejects.toThrow(/Nieprawidłowe/);
+    await saveGame(db, me, withDarts([60, 1, 40]));
+    const { rows } = await db.query("select turns from games where id = 'g4'");
+    expect(rows[0].turns[0].darts).toEqual([60, 1, 40]);
+    await deleteGame(db, me, "g4");
+
     await deleteGame(db, me, "g1");
     r = await leagueRanking(db, me.league.id);
     expect(r.games).toBe(0);
