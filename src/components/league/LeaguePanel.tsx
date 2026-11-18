@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import type { Member } from "@/lib/server/league";
 import { AddMemberForm } from "./AddMemberForm";
 import { useLeague } from "./LeagueProvider";
+import { RecoveryCode } from "./RecoveryCode";
 import { ShareLink } from "./ShareLink";
 import { LoadError, Loading } from "./StatusScreens";
 
@@ -68,6 +69,8 @@ export function LeaguePanel() {
           </p>
         )}
       </section>
+
+      {organizer && <RecoveryCode hasCode={me.league.hasRecoveryCode} />}
 
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">

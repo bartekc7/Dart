@@ -85,6 +85,7 @@ create table if not exists live_games (
 );
 create index if not exists live_games_league on live_games (league_id, updated_at desc);
 alter table leagues add column if not exists entry_mode text not null default 'sum';
+alter table leagues add column if not exists recovery_hash text;
 `;
 
 export async function ensureSchema(db: Db) {

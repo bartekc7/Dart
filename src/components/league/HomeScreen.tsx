@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { HomeActions } from "@/components/game/HomeActions";
 import { Ranking } from "@/components/game/Ranking";
 import { useLeague } from "./LeagueProvider";
@@ -41,6 +42,14 @@ export function HomeScreen() {
           <LiveBanners myId={me.member.id} />
           <div className="flex flex-col gap-3">
             <HomeActions />
+            {me.member.isOrganizer && !me.league.hasRecoveryCode && (
+              <Link
+                href="/liga#odzyskiwanie"
+                className="rounded-2xl bg-cream/10 px-4 py-3 text-sm ring-1 ring-cream/40"
+              >
+                🔑 <strong>Zabezpiecz ligę:</strong> utwórz kod odzyskiwania na wypadek zgubienia telefonu ›
+              </Link>
+            )}
           </div>
           <div className="order-1 empty:hidden md:order-none">
             <MyGames games={myGames} />
