@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { LeagueProvider } from "@/components/league/LeagueProvider";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
@@ -36,7 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full">
         {/* Jedna kolumna o szerokości telefonu, wyśrodkowana na większych ekranach. */}
         <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-          {children}
+          <LeagueProvider>{children}</LeagueProvider>
         </div>
       </body>
     </html>

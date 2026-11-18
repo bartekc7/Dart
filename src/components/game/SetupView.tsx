@@ -1,14 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { AddMemberForm } from "@/components/league/AddMemberForm";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
-import { createGame, DEFAULT_TARGET, newId } from "@/lib/game/engine";
-import { useLastPlayerNames } from "@/lib/game/storage";
+import { createGame, DEFAULT_TARGET } from "@/lib/game/engine";
+import { useLastPlayerIds } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
+import type { Member } from "@/lib/server/league";
 
 const TARGETS = [101, 201, 301, 501];
-const MAX_NAME = 20;
 
 function shuffle<T>(list: T[]): T[] {
   const a = [...list];
@@ -19,36 +20,39 @@ function shuffle<T>(list: T[]): T[] {
   return a;
 }
 
-export function SetupView({ onStart }: { onStart: (g: GameState) => void }) {
-  const [lastNames, setLastNames] = useLastPlayerNames();
+export function SetupView({
+  members,
+  myId,
+  onStart,
+}: {
+  members: Member[];
+  myId: string;
+  onStart: (g: GameState) => void;
+}) {
+  const [lastIds, setLastIds] = useLastPlayerIds();
   const [edited, setEdited] = useState<string[] | null>(null);
-  const names = edited ?? lastNames ?? [];
-  const setNames = (n: string[]) => setEdited(n);
+  const byId = new Map(members.map((m) => [m.id, m]));
+  const fallback = lastIds?.filter((id) => byId.has(id)) ?? [];
+  const ids = (edited ?? (fallback.length ? fallback : [myId])).filter((id) => byId.has(id));
+  const setIds = (n: string[]) => setEdited(n);
+  const players = ids.map((id) => byId.get(id)!);
+  const others = members.filter((m) => !ids.includes(m.id));
+  const [adding, setAdding] = useState(false);
 
-  const [draft, setDraft] = useState("");
   const [target, setTarget] = useState(DEFAULT_TARGET);
   const [customOpen, setCustomOpen] = useState(false);
 
-  const trimmed = draft.trim();
-  const duplicate = names.some((n) => n.toLowerCase() === trimmed.toLowerCase());
-
-  function addPlayer() {
-    if (!trimmed || duplicate) return;
-    setNames([...names, trimmed]);
-    setDraft("");
-  }
-
   function move(i: number, dir: -1 | 1) {
     const j = i + dir;
-    if (j < 0 || j >= names.length) return;
-    const next = [...names];
+    if (j < 0 || j >= ids.length) return;
+    const next = [...ids];
     [next[i], next[j]] = [next[j], next[i]];
-    setNames(next);
+    setIds(next);
   }
 
   function start() {
-    setLastNames(names);
-    onStart(createGame(names.map((name) => ({ id: newId(), name })), target));
+    setLastIds(ids);
+    onStart(createGame(players.map((m) => ({ id: m.id, name: m.name })), target));
   }
 
   const validTarget = Number.isInteger(target) && target > 0 && target <= 9999;
@@ -59,42 +63,14 @@ export function SetupView({ onStart }: { onStart: (g: GameState) => void }) {
 
       <section>
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-          Gracze {names.length > 0 && `(${names.length})`}
+          Kolejność rzucania {players.length > 0 && `(${players.length})`}
         </h2>
 
-        <form
-          className="flex gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            addPlayer();
-          }}
-        >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, MAX_NAME))}
-            placeholder="Imię gracza"
-            autoComplete="off"
-            enterKeyHint="done"
-            className="min-h-14 min-w-0 flex-1 rounded-2xl bg-surface-2 px-4 text-lg ring-1 ring-line outline-none placeholder:text-muted focus:ring-2 focus:ring-cream"
-          />
-          <button
-            type="submit"
-            disabled={!trimmed || duplicate}
-            aria-label="Dodaj gracza"
-            className="min-h-14 rounded-2xl bg-green px-5 text-lg font-semibold text-white disabled:opacity-40"
-          >
-            Dodaj
-          </button>
-        </form>
-        {duplicate && trimmed && (
-          <p className="mt-2 text-sm text-red">Taki gracz już jest na liście.</p>
-        )}
-
-        {names.length > 0 ? (
-          <ol className="mt-3 flex flex-col gap-2">
-            {names.map((name, i) => (
+        {players.length > 0 ? (
+          <ol className="flex flex-col gap-2">
+            {players.map(({ id, name }, i) => (
               <li
-                key={name}
+                key={id}
                 className="flex items-center gap-2 rounded-2xl bg-surface py-2 pr-2 pl-4 ring-1 ring-line"
               >
                 <span className="w-6 text-center font-mono text-muted">{i + 1}.</span>
@@ -105,33 +81,68 @@ export function SetupView({ onStart }: { onStart: (g: GameState) => void }) {
                 <IconButton
                   label={`Przesuń ${name} niżej`}
                   onClick={() => move(i, 1)}
-                  disabled={i === names.length - 1}
+                  disabled={i === players.length - 1}
                 >
                   ↓
                 </IconButton>
-                <IconButton
-                  label={`Usuń ${name}`}
-                  onClick={() => setNames(names.filter((_, k) => k !== i))}
-                >
+                <IconButton label={`Usuń ${name} z gry`} onClick={() => setIds(ids.filter((_, k) => k !== i))}>
                   ✕
                 </IconButton>
               </li>
             ))}
           </ol>
         ) : (
-          <p className="mt-3 rounded-2xl border border-dashed border-line p-4 text-center text-muted">
-            Dodaj graczy w kolejności rzucania.
+          <p className="rounded-2xl border border-dashed border-line p-4 text-center text-muted">
+            Dotknij graczy poniżej w kolejności rzucania.
           </p>
         )}
 
-        {names.length > 1 && (
+        {players.length > 1 && (
           <button
             type="button"
-            onClick={() => setNames(shuffle(names))}
+            onClick={() => setIds(shuffle(ids))}
             className="mt-3 w-full rounded-2xl py-3 font-semibold text-cream ring-1 ring-line active:bg-surface-2"
           >
             🎲 Losuj kolejność
           </button>
+        )}
+      </section>
+
+      <section>
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+          Dodaj do gry
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {others.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setIds([...ids, m.id])}
+              className="min-h-12 rounded-full bg-surface-2 px-4 text-lg font-medium ring-1 ring-line active:bg-line"
+            >
+              + {m.name}
+            </button>
+          ))}
+          {!adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="min-h-12 rounded-full px-4 font-semibold text-cream border border-dashed border-line active:bg-surface-2"
+            >
+              + Nowy gracz
+            </button>
+          )}
+        </div>
+        {adding && (
+          <div className="mt-3">
+            <AddMemberForm
+              onAdded={(m) => {
+                setIds([...ids, m.id]);
+                setAdding(false);
+              }}
+            />
+            <p className="mt-1 text-sm text-muted">Nowy gracz zostanie dodany do ligi.</p>
+          </div>
         )}
       </section>
 
@@ -179,8 +190,8 @@ export function SetupView({ onStart }: { onStart: (g: GameState) => void }) {
       </section>
 
       <div className="sticky bottom-0 mt-auto bg-board pt-2 pb-[env(safe-area-inset-bottom)]">
-        <Button onClick={start} disabled={names.length === 0 || !validTarget}>
-          {names.length === 0 ? "Dodaj co najmniej 1 gracza" : `Start – do ${validTarget ? target : "…"}`}
+        <Button onClick={start} disabled={players.length === 0 || !validTarget}>
+          {players.length === 0 ? "Wybierz co najmniej 1 gracza" : `Start – do ${validTarget ? target : "…"}`}
         </Button>
       </div>
     </main>

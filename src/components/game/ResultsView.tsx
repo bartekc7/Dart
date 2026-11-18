@@ -1,10 +1,13 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
+import { useLeague } from "@/components/league/LeagueProvider";
 import { Button } from "@/components/ui/Button";
+import { api } from "@/lib/api";
 import { rematch, standings, undoLastTurn } from "@/lib/game/engine";
-import { removeRecord } from "@/lib/game/history";
-import { useHistory } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
+
+type Save = { status: "saving" } | { status: "saved" } | { status: "error"; message: string };
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -21,7 +24,46 @@ export function ResultsView({
   game: GameState;
   onChange: (g: GameState | null) => void;
 }) {
-  const [history, setHistory] = useHistory();
+  const { refresh } = useLeague();
+  const [save, setSave] = useState<Save>({ status: "saving" });
+  const [undoError, setUndoError] = useState<string | null>(null);
+
+  // Zapis do rankingu ligi. Serwer sam przelicza miejsca, a ponowny zapis tej
+  // samej gry niczego nie dubluje, więc można bezpiecznie ponawiać.
+  const saveGame = useCallback(async () => {
+    setSave({ status: "saving" });
+    try {
+      await api("/api/games", {
+        body: {
+          id: game.id,
+          target: game.settings.target,
+          players: game.players.map((p) => p.id),
+          turns: game.turns,
+        },
+      });
+      setSave({ status: "saved" });
+      refresh();
+    } catch (e) {
+      setSave({ status: "error", message: (e as Error).message });
+    }
+  }, [game, refresh]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- zapis startuje po wejściu na ekran
+    saveGame();
+  }, [saveGame]);
+
+  async function undo() {
+    setUndoError(null);
+    try {
+      if (game.id) await api(`/api/games/${encodeURIComponent(game.id)}`, { method: "DELETE" });
+      refresh();
+      onChange(undoLastTurn(game));
+    } catch (e) {
+      setUndoError((e as Error).message);
+    }
+  }
+
   const table = standings(game);
   const winner = table[0];
 
@@ -31,6 +73,7 @@ export function ResultsView({
         <p className="text-6xl">🏆</p>
         <h1 className="mt-3 text-3xl font-bold">{winner.player.name} wygrywa!</h1>
         <p className="mt-1 text-muted">Gra do {game.settings.target} · klasyfikacja końcowa</p>
+        <SaveStatus save={save} onRetry={saveGame} />
       </section>
 
       <ol className="mt-6 flex flex-col gap-2" aria-label="Klasyfikacja">
@@ -61,15 +104,30 @@ export function ResultsView({
         </Button>
         <button
           type="button"
-          onClick={() => {
-            setHistory(removeRecord(history ?? [], game.id));
-            onChange(undoLastTurn(game));
-          }}
+          onClick={undo}
           className="py-2 text-sm text-muted"
         >
           ↶ Pomyłka? Cofnij ostatnią serię
         </button>
+        {undoError && <p className="text-center text-sm text-red">{undoError}</p>}
       </div>
     </main>
+  );
+}
+
+function SaveStatus({ save, onRetry }: { save: Save; onRetry: () => void }) {
+  if (save.status === "saving") {
+    return <p className="mt-2 text-sm text-muted">Zapisuję wynik w lidze…</p>;
+  }
+  if (save.status === "saved") {
+    return <p className="mt-2 text-sm font-medium text-green">✓ Zapisano w rankingu ligi</p>;
+  }
+  return (
+    <div role="alert" className="mt-3 flex flex-col items-center gap-2 rounded-2xl bg-red/10 px-4 py-3">
+      <p className="text-sm font-medium text-red">Wynik nie został zapisany. {save.message}</p>
+      <button type="button" onClick={onRetry} className="min-h-11 rounded-xl bg-surface-2 px-4 font-semibold ring-1 ring-line">
+        Spróbuj ponownie
+      </button>
+    </div>
   );
 }

@@ -2,18 +2,16 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { isGameState } from "./engine";
-import type { GameRecord } from "./history";
 import { applyTheme, isTheme, THEME_KEY, type Theme } from "../theme";
 import type { GameState } from "./types";
 
 /**
  * Bieżąca gra trzymana w localStorage telefonu, żeby odświeżenie strony
- * lub zablokowanie ekranu nie kasowało wyników. W kroku 3 obok tego
- * dojdzie zapis do bazy.
+ * lub zablokowanie ekranu nie kasowało wyników. Zakończona gra
+ * trafia do bazy ligi.
  */
 const GAME_KEY = "dart:game";
-const PLAYERS_KEY = "dart:lastPlayers";
-const HISTORY_KEY = "dart:history";
+const PLAYERS_KEY = "dart:lastPlayerIds";
 
 const listeners = new Set<() => void>();
 const cache = new Map<string, { raw: string | null; value: unknown }>();
@@ -67,14 +65,8 @@ export function useStoredGame(): [GameState | null | undefined, (v: GameState | 
   const game = raw === undefined ? undefined : isGameState(raw) ? raw : null;
   return [game, set as (v: GameState | null) => void];
 }
-export const useLastPlayerNames = () => useStored<string[]>(PLAYERS_KEY);
-
-/** Zakończone gry na tym telefonie, najnowsze pierwsze. */
-export function useHistory(): [GameRecord[] | undefined, (v: GameRecord[]) => void] {
-  const [raw, set] = useStored<GameRecord[]>(HISTORY_KEY);
-  const history = raw === undefined ? undefined : Array.isArray(raw) ? raw : [];
-  return [history, set as (v: GameRecord[]) => void];
-}
+/** Gracze ligi (id) z ostatniej gry na tym telefonie, w kolejności rzucania. */
+export const useLastPlayerIds = () => useStored<string[]>(PLAYERS_KEY);
 
 /** Wybrany motyw (domyślnie systemowy). Zmiana od razu przełącza wygląd. */
 export function useTheme(): [Theme, (t: Theme) => void] {
