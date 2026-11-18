@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useLeague } from "@/components/league/LeagueProvider";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { rematch, standings, undoLastTurn } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
@@ -76,6 +76,9 @@ export function ResultsView({
         <Button variant="secondary" onClick={() => onChange(null)}>
           Nowa gra
         </Button>
+        <ButtonLink href="/" variant="ghost">
+          Wróć do rankingu
+        </ButtonLink>
         <button
           type="button"
           onClick={undo}
