@@ -1,18 +1,11 @@
 "use client";
 
-import { ranking, RANKING_GAMES } from "@/lib/game/history";
-import { useHistory } from "@/lib/game/storage";
+import type { RankingRow } from "@/lib/game/history";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-/** Ranking graczy z ostatnich gier zapisanych na tym telefonie. */
-export function Ranking() {
-  const [history] = useHistory();
-  if (history === undefined) return null;
-
-  const rows = ranking(history);
-  const games = Math.min(history.filter((g) => g.results.length > 1).length, RANKING_GAMES);
-
+/** Ranking graczy ligi z ostatnich gier. */
+export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: number; myId?: string }) {
   if (rows.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-line p-4 text-center text-sm text-muted">
@@ -43,7 +36,7 @@ export function Ranking() {
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={r.name} className="bg-surface">
+            <tr key={r.id ?? r.name} className={r.id === myId ? "bg-surface-2" : "bg-surface"}>
               <td className="rounded-l-xl py-2 pl-3 text-center">
                 {MEDALS[i] ?? <span className="font-mono text-sm text-muted">{i + 1}.</span>}
               </td>

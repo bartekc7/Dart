@@ -1,5 +1,4 @@
-import { HomeActions } from "@/components/game/HomeActions";
-import { Ranking } from "@/components/game/Ranking";
+import { HomeScreen } from "@/components/league/HomeScreen";
 import Link from "next/link";
 
 export default function Home() {
@@ -28,13 +27,7 @@ export default function Home() {
         </Link>
       </header>
 
-      <div className="flex-1">
-        <Ranking />
-      </div>
-
-      <nav className="sticky bottom-0 flex flex-col gap-3 bg-board pt-2">
-        <HomeActions />
-      </nav>
+      <HomeScreen />
     </main>
   );
 }

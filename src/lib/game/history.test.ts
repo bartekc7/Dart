@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTurn, createGame } from "./engine";
-import { addRecord, ranking, removeRecord, toRecord, type GameRecord } from "./history";
+import { ranking, type GameRecord } from "./history";
 
 const rec = (id: string, ...names: string[]): GameRecord => ({
   id,
@@ -9,27 +8,7 @@ const rec = (id: string, ...names: string[]): GameRecord => ({
   results: names.map((name, i) => ({ name, place: i + 1 })),
 });
 
-describe("historia gier", () => {
-  it("zapisuje klasyfikację zakończonej gry", () => {
-    const players = [
-      { id: "a", name: "Ania" },
-      { id: "b", name: "Bartek" },
-    ];
-    const g = [50, 101].reduce(applyTurn, createGame(players, 101));
-    expect(toRecord(g).results).toEqual([
-      { name: "Bartek", place: 1 },
-      { name: "Ania", place: 2 },
-    ]);
-  });
-
-  it("nie dubluje gry i pozwala ją usunąć (cofnięcie)", () => {
-    let h = addRecord([], rec("1", "A", "B"));
-    h = addRecord(h, rec("1", "B", "A"));
-    expect(h).toHaveLength(1);
-    expect(h[0].results[0].name).toBe("B");
-    expect(removeRecord(h, "1")).toEqual([]);
-  });
-
+describe("ranking ligi", () => {
   it("ranking wg średniego miejsca z ostatnich gier", () => {
     const h = [rec("3", "Bartek", "Ania", "Celina"), rec("2", "Ania", "bartek"), rec("1", "Ania", "Bartek")];
     const r = ranking(h);
