@@ -5,12 +5,18 @@ import { useState } from "react";
 import {
   applyTurn,
   currentPlayer,
+  isGameOver,
   lastTurnOf,
+  placeOf,
   remainingFor,
   undoLastTurn,
 } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
 import { Keypad } from "./Keypad";
+import { addRecord, toRecord } from "@/lib/game/history";
+import { useHistory } from "@/lib/game/storage";
+
+const MEDALS = ["🥇", "🥈", "🥉"];
 
 type Feedback = { text: string; bust: boolean } | null;
 
@@ -23,6 +29,7 @@ export function PlayView({
 }) {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [history, setHistory] = useHistory();
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
@@ -31,12 +38,16 @@ export function PlayView({
     const score = Number(input);
     const next = applyTurn(game, score);
     const turn = next.turns.at(-1)!;
+    const place = placeOf(next, player.id);
     setFeedback(
       turn.bust
         ? { text: `${player.name}: ${score} – za dużo, nie liczy się`, bust: true }
-        : { text: `${player.name}: +${score}, zostało ${remainingFor(next, player.id)}`, bust: false },
+        : place
+          ? { text: `${player.name} kończy na ${place}. miejscu! 🎯`, bust: false }
+          : { text: `${player.name}: +${score}, zostało ${remainingFor(next, player.id)}`, bust: false },
     );
     setInput("");
+    if (isGameOver(next)) setHistory(addRecord(history ?? [], toRecord(next)));
     onChange(next);
   }
 
@@ -76,7 +87,7 @@ export function PlayView({
         <p className="text-6xl leading-tight font-bold tabular-nums max-[380px]:text-5xl">{remaining}</p>
         {feedback ? (
           <p role="status" className="mx-auto mt-1 w-fit rounded-full bg-black/25 px-3 py-0.5 text-sm font-medium">
-            {feedback.bust ? "✋ " : "✓ "}
+            {feedback.bust ? "✋ " : feedback.text.endsWith("🎯") ? "" : "✓ "}
             {feedback.text}
           </p>
         ) : (
@@ -92,25 +103,34 @@ export function PlayView({
       >
         {game.players.map((p) => {
           const active = p.id === player.id;
+          const place = placeOf(game, p.id);
           const last = lastTurnOf(game, p.id);
           return (
             <li
               key={p.id}
               aria-current={active || undefined}
               className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-1 ring-1 ${
-                active ? "bg-surface-2 ring-cream" : "bg-surface ring-line"
+                active ? "bg-surface-2 ring-cream" : place ? "bg-surface/50 ring-line/50" : "bg-surface ring-line"
               }`}
             >
-              <span className={`size-2 rounded-full ${active ? "bg-cream" : "bg-transparent"}`} />
-              <span className="flex-1 truncate font-medium">{p.name}</span>
-              {last && game.players.length <= 3 && (
-                <span className={`text-sm ${last.bust ? "text-red line-through" : "text-muted"}`}>
-                  {last.bust ? last.scored : `+${last.scored}`}
+              <span className={`size-2 shrink-0 rounded-full ${active ? "bg-cream" : "bg-transparent"}`} />
+              <span className={`flex-1 truncate font-medium ${place ? "text-muted" : ""}`}>{p.name}</span>
+              {place ? (
+                <span className="text-lg font-bold" aria-label={`${place}. miejsce`}>
+                  {MEDALS[place - 1] ?? `${place}.`}
                 </span>
+              ) : (
+                <>
+                  {last && game.players.length <= 3 && (
+                    <span className={`text-sm ${last.bust ? "text-red line-through" : "text-muted"}`}>
+                      {last.bust ? last.scored : `+${last.scored}`}
+                    </span>
+                  )}
+                  <span className="text-right font-mono text-xl font-bold tabular-nums">
+                    {remainingFor(game, p.id)}
+                  </span>
+                </>
               )}
-              <span className="text-right font-mono text-xl font-bold tabular-nums">
-                {remainingFor(game, p.id)}
-              </span>
             </li>
           );
         })}

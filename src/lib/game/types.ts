@@ -25,9 +25,26 @@ export interface Turn {
 }
 
 export interface GameState {
+  /** Identyfikator gry (do historii). */
+  id?: string;
   settings: GameSettings;
   /** Gracze w kolejności rzucania. */
   players: Player[];
+  /**
+   * Wszystkie serie po kolei. Kolejność miejsc i to, kto rzuca,
+   * wyliczamy z tej listy, więc cofnięcie serii zawsze jest spójne.
+   */
   turns: Turn[];
-  winnerId: PlayerId | null;
+}
+
+export interface Placement {
+  player: Player;
+  /** 1 = pierwsze miejsce. */
+  place: number;
+  /** Ile serii rzucił. */
+  rounds: number;
+  /** Ile zostało (0 dla tych, którzy trafili równo). */
+  remaining: number;
+  /** true, gdy trafił równo w cel. */
+  finished: boolean;
 }

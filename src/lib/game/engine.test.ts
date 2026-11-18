@@ -3,16 +3,27 @@ import {
   applyTurn,
   createGame,
   currentPlayer,
+  finishOrder,
+  isGameOver,
+  isGameState,
+  lastTurnOf,
+  placeOf,
+  rematch,
   remainingFor,
+  standings,
   undoLastTurn,
 } from "./engine";
+import type { GameState } from "./types";
 
 const players = [
   { id: "a", name: "Ania" },
   { id: "b", name: "Bartek" },
+  { id: "c", name: "Celina" },
 ];
 
-describe("silnik gry do równego", () => {
+const play = (g: GameState, ...scores: number[]) => scores.reduce(applyTurn, g);
+
+describe("podstawy", () => {
   it("pokazuje ile zostało i zmienia kolejkę", () => {
     let g = createGame(players, 101);
     expect(remainingFor(g, "a")).toBe(101);
@@ -22,31 +33,10 @@ describe("silnik gry do równego", () => {
   });
 
   it("przekroczenie celu = seria się nie liczy", () => {
-    let g = createGame(players, 101);
-    g = applyTurn(g, 90); // a: zostało 11
-    g = applyTurn(g, 10); // b
-    g = applyTurn(g, 20); // a: przekroczenie
+    const g = play(createGame(players, 101), 90, 10, 10, 20); // a: 11 zostało, potem 20
     expect(g.turns.at(-1)?.bust).toBe(true);
     expect(remainingFor(g, "a")).toBe(11);
-    expect(g.winnerId).toBeNull();
-  });
-
-  it("trafienie równo w cel kończy grę", () => {
-    let g = createGame(players, 101);
-    g = applyTurn(g, 100);
-    g = applyTurn(g, 0);
-    g = applyTurn(g, 1);
-    expect(g.winnerId).toBe("a");
-    expect(currentPlayer(g)).toBeNull();
-    expect(() => applyTurn(g, 5)).toThrow();
-  });
-
-  it("cofnięcie serii przywraca stan", () => {
-    let g = createGame(players, 101);
-    g = applyTurn(g, 101);
-    g = undoLastTurn(g);
-    expect(g.winnerId).toBeNull();
-    expect(currentPlayer(g)?.id).toBe("a");
+    expect(finishOrder(g)).toEqual([]);
   });
 
   it("odrzuca niepoprawne wyniki serii", () => {
@@ -57,17 +47,64 @@ describe("silnik gry do równego", () => {
   });
 });
 
+describe("gra do ostatniego miejsca", () => {
+  it("po trafieniu celu gracz kończy, a reszta gra dalej bez niego", () => {
+    let g = play(createGame(players, 101), 101); // Ania kończy od razu
+    expect(placeOf(g, "a")).toBe(1);
+    expect(isGameOver(g)).toBe(false);
+    expect(currentPlayer(g)?.id).toBe("b");
+    g = play(g, 10, 20); // Bartek, Celina
+    expect(currentPlayer(g)?.id).toBe("b"); // Ania pominięta
+  });
+
+  it("kończy się, gdy został jeden gracz, i daje pełną klasyfikację", () => {
+    // a:100, b:50, c:101 (kończy 1.), a:1 (kończy 2.) → zostaje Bartek
+    const g = play(createGame(players, 101), 100, 50, 101, 1);
+    expect(finishOrder(g)).toEqual(["c", "a"]);
+    expect(isGameOver(g)).toBe(true);
+    expect(currentPlayer(g)).toBeNull();
+    expect(() => applyTurn(g, 5)).toThrow();
+    expect(standings(g).map((s) => [s.player.id, s.place, s.finished])).toEqual([
+      ["c", 1, true],
+      ["a", 2, true],
+      ["b", 3, false],
+    ]);
+    expect(standings(g)[2].remaining).toBe(51);
+  });
+
+  it("gra solo kończy się po trafieniu celu", () => {
+    const g = play(createGame([players[0]], 101), 60, 41);
+    expect(isGameOver(g)).toBe(true);
+    expect(standings(g)[0].place).toBe(1);
+  });
+
+  it("cofnięcie serii kończącej przywraca gracza do gry", () => {
+    let g = play(createGame(players, 101), 100, 50, 101, 1);
+    g = undoLastTurn(g);
+    expect(isGameOver(g)).toBe(false);
+    expect(finishOrder(g)).toEqual(["c"]);
+    expect(currentPlayer(g)?.id).toBe("a");
+  });
+
+  it("kolejka po ukończeniu ostatniego w rzędzie wraca na początek", () => {
+    const g = play(createGame(players, 101), 10, 10, 101); // Celina kończy
+    expect(currentPlayer(g)?.id).toBe("a");
+  });
+});
+
 describe("pomocnicze", () => {
-  it("lastTurnOf i rematch", async () => {
-    const { lastTurnOf, rematch } = await import("./engine");
-    let g = createGame(players, 101);
-    expect(lastTurnOf(g, "a")).toBeNull();
-    g = applyTurn(g, 40);
-    g = applyTurn(g, 7);
+  it("lastTurnOf i rematch", () => {
+    const g = play(createGame(players, 101), 40, 7);
     expect(lastTurnOf(g, "a")?.scored).toBe(40);
+    expect(lastTurnOf(g, "c")).toBeNull();
     const r = rematch(g);
     expect(r.turns).toHaveLength(0);
     expect(r.players).toEqual(players);
-    expect(r.settings.target).toBe(101);
+  });
+
+  it("odrzuca zapis w starym formacie", () => {
+    expect(isGameState(createGame(players))).toBe(true);
+    expect(isGameState({ ...createGame(players), winnerId: null })).toBe(false);
+    expect(isGameState(null)).toBe(false);
   });
 });
