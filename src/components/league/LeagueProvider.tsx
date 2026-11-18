@@ -46,6 +46,16 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Telefon wraca z tła albo karta znów jest widoczna: ranking mógł się zmienić
+  // (np. grę policzył inny telefon), więc pobieramy stan ligi od nowa.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
+
   return <LeagueContext.Provider value={{ state, refresh }}>{children}</LeagueContext.Provider>;
 }
 
