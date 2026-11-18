@@ -35,21 +35,49 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={r.id ?? r.name} className={r.id === myId ? "bg-surface-2" : "bg-surface"}>
-              <td className="rounded-l-xl py-2 pl-3 text-center">
-                {MEDALS[i] ?? <span className="font-mono text-sm text-muted">{i + 1}.</span>}
-              </td>
-              <td className="truncate py-2 pl-2 font-medium">{r.name}</td>
-              <td className="px-1 text-right font-mono tabular-nums text-muted">{r.games}</td>
-              <td className="px-1 text-right font-mono tabular-nums">{r.wins}</td>
-              <td className="rounded-r-xl pr-3 text-right font-mono font-bold tabular-nums">
-                {r.avgPlace.toFixed(1).replace(".", ",")}
-              </td>
-            </tr>
-          ))}
+          {rows.map((r, i) => {
+            const me = r.id === myId;
+            return (
+              <tr key={r.id ?? r.name} className={me ? "bg-cream/15" : "bg-surface"}>
+                <td className={`rounded-l-xl py-2 pl-3 text-center ${me ? "shadow-[inset_3px_0_0_var(--color-cream)]" : ""}`}>
+                  {MEDALS[i] ?? <span className="font-mono text-sm text-muted">{i + 1}.</span>}
+                </td>
+                <td className="py-2 pl-2">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className={`truncate ${me ? "font-bold" : "font-medium"}`}>{r.name}</span>
+                    {me && (
+                      <span className="shrink-0 rounded-full bg-cream px-1.5 text-[11px] font-bold text-board">TY</span>
+                    )}
+                    <Trend trend={r.trend} />
+                  </span>
+                </td>
+                <td className="px-1 text-right font-mono tabular-nums text-muted">{r.games}</td>
+                <td className="px-1 text-right font-mono tabular-nums">{r.wins}</td>
+                <td className="rounded-r-xl pr-3 text-right font-mono font-bold tabular-nums">
+                  {r.avgPlace.toFixed(1).replace(".", ",")}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </section>
+  );
+}
+
+/** Zmiana pozycji po ostatniej grze. */
+function Trend({ trend }: { trend: RankingRow["trend"] }) {
+  if (trend === undefined || trend === 0) return null;
+  if (trend === "new") return <span className="shrink-0 text-[11px] font-semibold text-muted">nowy</span>;
+  const up = trend > 0;
+  return (
+    <span
+      className={`shrink-0 text-xs font-bold tabular-nums ${up ? "text-green" : "text-red"}`}
+      aria-label={up ? `awans o ${trend}` : `spadek o ${-trend}`}
+      title="Zmiana po ostatniej grze"
+    >
+      {up ? "▲" : "▼"}
+      {Math.abs(trend)}
+    </span>
   );
 }

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { applyTurn, createGame, isGameOver, standings } from "../game/engine";
-import { ranking, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
+import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
 import type { GameState, Turn } from "../game/types";
 import type { Db } from "./db";
 
@@ -392,7 +392,7 @@ export async function leagueRanking(db: Db, leagueId: string): Promise<{ rows: R
      select recent.id, recent.target, recent.finished_at, r.member_id, m.name, r.place
        from recent join game_results r on r.game_id = recent.id join members m on m.id = r.member_id
       order by recent.finished_at desc, r.place`,
-    [leagueId, RANKING_GAMES],
+    [leagueId, RANKING_GAMES + 1],
   );
   const games = new Map<string, GameRecord>();
   for (const r of rows) {
@@ -406,7 +406,7 @@ export async function leagueRanking(db: Db, leagueId: string): Promise<{ rows: R
     games.set(r.id, g);
   }
   const history = [...games.values()];
-  return { rows: ranking(history), games: history.length };
+  return { rows: rankingWithTrend(history), games: Math.min(history.length, RANKING_GAMES) };
 }
 
 /** Przerwana gra znika z podglądu (np. „Zacznij nową grę” w trakcie). */
