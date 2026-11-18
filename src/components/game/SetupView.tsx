@@ -3,18 +3,12 @@
 import { useState } from "react";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button } from "@/components/ui/Button";
-import { createGame, DEFAULT_TARGET } from "@/lib/game/engine";
+import { createGame, DEFAULT_TARGET, newId } from "@/lib/game/engine";
 import { useLastPlayerNames } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
 
 const TARGETS = [101, 201, 301, 501];
 const MAX_NAME = 20;
-
-function newId() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
-}
 
 function shuffle<T>(list: T[]): T[] {
   const a = [...list];

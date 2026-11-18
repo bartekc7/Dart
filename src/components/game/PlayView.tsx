@@ -5,6 +5,7 @@ import { useState } from "react";
 import {
   applyTurn,
   currentPlayer,
+  isGameOver,
   lastTurnOf,
   placeOf,
   remainingFor,
@@ -12,6 +13,8 @@ import {
 } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
 import { Keypad } from "./Keypad";
+import { addRecord, toRecord } from "@/lib/game/history";
+import { useHistory } from "@/lib/game/storage";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
@@ -26,6 +29,7 @@ export function PlayView({
 }) {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [history, setHistory] = useHistory();
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
@@ -43,6 +47,7 @@ export function PlayView({
           : { text: `${player.name}: +${score}, zostało ${remainingFor(next, player.id)}`, bust: false },
     );
     setInput("");
+    if (isGameOver(next)) setHistory(addRecord(history ?? [], toRecord(next)));
     onChange(next);
   }
 

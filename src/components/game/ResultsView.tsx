@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/Button";
 import { rematch, standings, undoLastTurn } from "@/lib/game/engine";
+import { removeRecord } from "@/lib/game/history";
+import { useHistory } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -19,6 +21,7 @@ export function ResultsView({
   game: GameState;
   onChange: (g: GameState | null) => void;
 }) {
+  const [history, setHistory] = useHistory();
   const table = standings(game);
   const winner = table[0];
 
@@ -58,7 +61,10 @@ export function ResultsView({
         </Button>
         <button
           type="button"
-          onClick={() => onChange(undoLastTurn(game))}
+          onClick={() => {
+            setHistory(removeRecord(history ?? [], game.id));
+            onChange(undoLastTurn(game));
+          }}
           className="py-2 text-sm text-muted"
         >
           ↶ Pomyłka? Cofnij ostatnią serię

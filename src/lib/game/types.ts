@@ -25,6 +25,8 @@ export interface Turn {
 }
 
 export interface GameState {
+  /** Identyfikator gry (do historii). */
+  id?: string;
   settings: GameSettings;
   /** Gracze w kolejności rzucania. */
   players: Player[];

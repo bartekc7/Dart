@@ -2,6 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { isGameState } from "./engine";
+import type { GameRecord } from "./history";
 import type { GameState } from "./types";
 
 /**
@@ -11,6 +12,7 @@ import type { GameState } from "./types";
  */
 const GAME_KEY = "dart:game";
 const PLAYERS_KEY = "dart:lastPlayers";
+const HISTORY_KEY = "dart:history";
 
 const listeners = new Set<() => void>();
 const cache = new Map<string, { raw: string | null; value: unknown }>();
@@ -65,3 +67,10 @@ export function useStoredGame(): [GameState | null | undefined, (v: GameState | 
   return [game, set as (v: GameState | null) => void];
 }
 export const useLastPlayerNames = () => useStored<string[]>(PLAYERS_KEY);
+
+/** Zakończone gry na tym telefonie, najnowsze pierwsze. */
+export function useHistory(): [GameRecord[] | undefined, (v: GameRecord[]) => void] {
+  const [raw, set] = useStored<GameRecord[]>(HISTORY_KEY);
+  const history = raw === undefined ? undefined : Array.isArray(raw) ? raw : [];
+  return [history, set as (v: GameRecord[]) => void];
+}

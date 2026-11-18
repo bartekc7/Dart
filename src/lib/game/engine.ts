@@ -3,6 +3,12 @@ import type { GameState, Placement, Player, PlayerId, Turn } from "./types";
 export const MAX_SCORE_PER_TURN = 180;
 export const DEFAULT_TARGET = 101;
 
+export function newId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 /*
  * Zasady:
  * - gramy „do równego”: kto trafi dokładnie w cel, kończy i zajmuje kolejne wolne miejsce,
@@ -19,7 +25,7 @@ export function createGame(
   if (players.length === 0) throw new Error("Dodaj co najmniej jednego gracza.");
   if (!Number.isInteger(target) || target <= 0)
     throw new Error("Cel musi być dodatnią liczbą całkowitą.");
-  return { settings: { target }, players, turns: [] };
+  return { id: newId(), settings: { target }, players, turns: [] };
 }
 
 /** Punkty zdobyte przez gracza (serie z przekroczeniem się nie liczą). */

@@ -19,7 +19,7 @@ npm run build   # build produkcyjny
 | `src/app/` | Ekrany (Next.js App Router): start `/`, gra `/gra` |
 | `src/components/game/` | Ekrany gry: ustawienia, rozgrywka z klawiaturą, klasyfikacja |
 | `src/components/ui/` | Wspólne elementy UI (przyciski, nagłówek) |
-| `src/lib/game/` | Logika gry niezależna od UI: kolejka, „zostało X”, przekroczenie = seria się nie liczy, gra do ostatniego miejsca |
+| `src/lib/game/` | Logika gry niezależna od UI: kolejka, „zostało X”, przekroczenie = seria się nie liczy, gra do ostatniego miejsca, historia i ranking |
 
 Logika w `src/lib/game` nie zależy od Reacta ani bazy, więc posłuży
 też przy zapisie gier do bazy i podglądzie na żywo.
