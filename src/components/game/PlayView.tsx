@@ -14,10 +14,9 @@ import {
   undoLastTurn,
 } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
-import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { useEntryMode, usePlayerColors } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
-import { useEntryMode } from "@/lib/game/storage";
 import { DartPad } from "./DartPad";
 import { Keypad } from "./Keypad";
 
@@ -34,7 +33,7 @@ export function PlayView({
 }) {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
-  const [mode] = useEntryMode();
+  const mode = useEntryMode();
   const [confirmEnd, setConfirmEnd] = useState(false);
   const colorOf = usePlayerColors();
 
