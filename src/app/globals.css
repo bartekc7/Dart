@@ -1,22 +1,70 @@
 @import "tailwindcss";
 
-/* Kolory inspirowane tarczą: ciemne tło, czerwień i zieleń pól, kremowe akcenty. */
+/*
+ * Kolory inspirowane tarczą. Motyw ciemny jest domyślny, jasny włącza się,
+ * gdy system tak każe (motyw „systemowy”) albo gdy użytkownik wybierze go w opcjach.
+ * Wybór trzymamy w atrybucie <html data-theme="system|light|dark">.
+ */
+:root {
+  --c-board: #0f1412;
+  --c-surface: #18201c;
+  --c-surface-2: #222c27;
+  --c-line: #2f3b35;
+  --c-ink: #f4efe2;
+  --c-muted: #a3aba6;
+  --c-red: #e23b3b;
+  --c-red-deep: #b42a2a;
+  --c-green: #1f9d55;
+  --c-cream: #f2e3b6;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --c-board: #f5f1e6;
+    --c-surface: #ffffff;
+    --c-surface-2: #ebe5d6;
+    --c-line: #d6cdb9;
+    --c-ink: #1b211e;
+    --c-muted: #5c655f;
+    --c-red: #d32f2f;
+    --c-red-deep: #a82222;
+    --c-green: #157a40;
+    --c-cream: #26302b;
+    color-scheme: light;
+  }
+}
+
+:root[data-theme="light"] {
+  --c-board: #f5f1e6;
+  --c-surface: #ffffff;
+  --c-surface-2: #ebe5d6;
+  --c-line: #d6cdb9;
+  --c-ink: #1b211e;
+  --c-muted: #5c655f;
+  --c-red: #d32f2f;
+  --c-red-deep: #a82222;
+  --c-green: #157a40;
+  --c-cream: #26302b;
+  color-scheme: light;
+}
+
 @theme inline {
-  --color-board: #0f1412;
-  --color-surface: #18201c;
-  --color-surface-2: #222c27;
-  --color-line: #2f3b35;
-  --color-ink: #f4efe2;
-  --color-muted: #a3aba6;
-  --color-red: #e23b3b;
-  --color-green: #1f9d55;
-  --color-cream: #f2e3b6;
+  --color-board: var(--c-board);
+  --color-surface: var(--c-surface);
+  --color-surface-2: var(--c-surface-2);
+  --color-line: var(--c-line);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-red: var(--c-red);
+  --color-red-deep: var(--c-red-deep);
+  --color-green: var(--c-green);
+  --color-cream: var(--c-cream);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 html {
-  color-scheme: dark;
   -webkit-tap-highlight-color: transparent;
 }
 

@@ -63,7 +63,7 @@ export function PlayView({
   return (
     <main className="screen-fit flex flex-col gap-3">
       {/* Najważniejsze: kto rzuca i ile mu zostało. */}
-      <section className="shrink-0 rounded-3xl bg-gradient-to-br from-red to-[#b42a2a] px-3 pt-2 pb-2.5 text-center text-white shadow-lg shadow-red/20">
+      <section className="shrink-0 rounded-3xl bg-gradient-to-br from-red to-red-deep px-3 pt-2 pb-2.5 text-center text-white shadow-lg shadow-red/20">
         <div className="flex items-center justify-between">
           <Link
             href="/"
