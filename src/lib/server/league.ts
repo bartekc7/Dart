@@ -29,6 +29,8 @@ export interface League {
   joinCode: string;
   /** Sposób wpisywania punktów w lidze; zmienia go tylko organizator. */
   entryMode: EntryMode;
+  /** Czy organizator ma zapisany kod odzyskiwania (sam kod znamy tylko w chwili tworzenia). */
+  hasRecoveryCode: boolean;
 }
 
 function toEntryMode(v: unknown): EntryMode {
@@ -118,7 +120,7 @@ export async function createLeague(db: Db, token: string, leagueName: unknown, p
 export async function whoAmI(db: Db, token: string | undefined): Promise<Me | null> {
   if (!token) return null;
   const { rows } = await db.query(
-    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, l.id as league_id, l.name as league_name, l.join_code, l.entry_mode
+    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, l.id as league_id, l.name as league_name, l.join_code, l.entry_mode, l.recovery_hash is not null as has_recovery
        from devices d join members m on m.id = d.member_id join leagues l on l.id = m.league_id
       where d.token_hash = $1`,
     [hashToken(token)],
@@ -127,7 +129,7 @@ export async function whoAmI(db: Db, token: string | undefined): Promise<Me | nu
   if (!r) return null;
   await db.query("update devices set last_seen = now() where token_hash = $1", [hashToken(token)]);
   return {
-    league: { id: r.league_id, name: r.league_name, joinCode: r.join_code, entryMode: toEntryMode(r.entry_mode) },
+    league: { id: r.league_id, name: r.league_name, joinCode: r.join_code, entryMode: toEntryMode(r.entry_mode), hasRecoveryCode: r.has_recovery },
     member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true, color: r.color },
   };
 }
@@ -158,10 +160,10 @@ export async function listMembers(db: Db, leagueId: string): Promise<Member[]> {
 }
 
 export async function leagueByCode(db: Db, code: string): Promise<League | null> {
-  const { rows } = await db.query("select id, name, join_code, entry_mode from leagues where join_code = $1", [
+  const { rows } = await db.query("select id, name, join_code, entry_mode, recovery_hash is not null as has_recovery from leagues where join_code = $1", [
     code.toUpperCase(),
   ]);
-  return rows[0] ? { id: rows[0].id, name: rows[0].name, joinCode: rows[0].join_code, entryMode: toEntryMode(rows[0].entry_mode) } : null;
+  return rows[0] ? { id: rows[0].id, name: rows[0].name, joinCode: rows[0].join_code, entryMode: toEntryMode(rows[0].entry_mode), hasRecoveryCode: rows[0].has_recovery } : null;
 }
 
 /** Dołączenie po linku: nowy gracz z podaną nazwą, przypisany do tego urządzenia. */
@@ -229,6 +231,42 @@ export async function makeOrganizer(db: Db, me: Me, memberId: string) {
     me.league.id,
     memberId,
   ]);
+  // Kod odzyskiwania należał do poprzedniego organizatora – nowy tworzy swój.
+  await db.query("update leagues set recovery_hash = null where id = $1", [me.league.id]);
+}
+
+function normalizeRecoveryCode(raw: unknown): string {
+  return typeof raw === "string" ? raw.toUpperCase().replace(/[^A-Z0-9]/g, "") : "";
+}
+
+/**
+ * Nowy kod odzyskiwania ligi (np. „ABCD-EFGH-JKMN”). W bazie trzymamy tylko skrót,
+ * więc kod widać jeden raz; nowy kod unieważnia poprzedni.
+ */
+export async function createRecoveryCode(db: Db, me: Me): Promise<string> {
+  requireOrganizer(me);
+  const raw = newJoinCode(12);
+  await db.query("update leagues set recovery_hash = $2 where id = $1", [me.league.id, hashToken(raw)]);
+  return raw.match(/.{4}/g)!.join("-");
+}
+
+/**
+ * Organizator zgubił telefon: kod odzyskiwania przypisuje ten telefon do organizatora,
+ * odłącza jego poprzednie telefony i przestaje działać (trzeba utworzyć nowy).
+ */
+export async function recoverWithCode(db: Db, token: string, code: unknown) {
+  const normalized = normalizeRecoveryCode(code);
+  if (!normalized) throw new UserError("Wpisz kod odzyskiwania.");
+  const { rows } = await db.query(
+    `select m.id from leagues l join members m on m.league_id = l.id and m.is_organizer
+      where l.recovery_hash = $1 order by m.created_at limit 1`,
+    [hashToken(normalized)],
+  );
+  if (!rows[0]) throw new UserError("Nieprawidłowy kod odzyskiwania. Sprawdź, czy przepisałeś go dokładnie.", 404);
+  const memberId: string = rows[0].id;
+  await db.query("delete from devices where member_id = $1 and token_hash <> $2", [memberId, hashToken(token)]);
+  await bindDevice(db, token, memberId);
+  await db.query("update leagues set recovery_hash = null where recovery_hash = $1", [hashToken(normalized)]);
 }
 
 /** Organizator ustala, jak w lidze wpisuje się punkty serii. */

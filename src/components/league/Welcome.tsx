@@ -17,6 +17,9 @@ export function Welcome() {
         </div>
       </section>
       <ButtonLink href="/liga/nowa">Załóż ligę</ButtonLink>
+      <ButtonLink href="/odzyskaj" variant="ghost" className="mt-2 min-h-11 text-base">
+        🔑 Mam kod odzyskiwania ligi
+      </ButtonLink>
     </div>
   );
 }

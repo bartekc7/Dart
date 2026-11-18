@@ -20,6 +20,8 @@ import {
   recentGamesOf,
   requireMe,
   saveGame,
+  createRecoveryCode,
+  recoverWithCode,
   setEntryMode,
   whoAmI,
 } from "./league";
@@ -32,7 +34,7 @@ const url = process.env.TEST_DATABASE_URL;
 
 describe.skipIf(!url)("liga w bazie", () => {
   let db: Pool;
-  const ania = newDeviceToken();
+  let ania = newDeviceToken();
   const bartek = newDeviceToken();
   const nowyTelefonAni = newDeviceToken();
 
@@ -86,6 +88,26 @@ describe.skipIf(!url)("liga w bazie", () => {
     await setEntryMode(db, me, "darts");
     expect((await requireMe(db, bartek)).league.entryMode).toBe("darts");
     await setEntryMode(db, me, "sum");
+  });
+
+  it("kod odzyskiwania przywraca organizatora na nowym telefonie", async () => {
+    const me = await requireMe(db, ania);
+    expect(me.league.hasRecoveryCode).toBe(false);
+    await expect(createRecoveryCode(db, await requireMe(db, bartek))).rejects.toThrow(/organizator/);
+    const stary = await createRecoveryCode(db, me);
+    const code = await createRecoveryCode(db, me); // nowy unieważnia stary
+    expect(code).toMatch(/^[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+    expect((await requireMe(db, ania)).league.hasRecoveryCode).toBe(true);
+
+    const nowy = newDeviceToken();
+    await expect(recoverWithCode(db, nowy, stary)).rejects.toThrow(/Nieprawidłowy/);
+    await recoverWithCode(db, nowy, ` ${code.toLowerCase().replace(/-/g, " ")} `);
+    const odzyskany = await requireMe(db, nowy);
+    expect(odzyskany.member).toMatchObject({ name: "Ania", isOrganizer: true });
+    expect(odzyskany.league.hasRecoveryCode).toBe(false); // kod działa raz
+    expect(await whoAmI(db, ania)).toBeNull(); // zgubiony telefon odłączony
+    await expect(recoverWithCode(db, newDeviceToken(), code)).rejects.toThrow(/Nieprawidłowy/);
+    ania = nowy;
   });
 
   it("przekazanie roli organizatora", async () => {
