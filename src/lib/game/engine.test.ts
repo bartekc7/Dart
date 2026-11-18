@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   applyTurn,
+  canEndEarly,
+  endGame,
   createGame,
   currentPlayer,
   finishOrder,
@@ -91,6 +93,25 @@ describe("gra do ostatniego miejsca", () => {
   it("kolejka po ukończeniu ostatniego w rzędzie wraca na początek", () => {
     const g = play(createGame(players, 101), 10, 10, 101); // Celina kończy
     expect(currentPlayer(g)?.id).toBe("a");
+  });
+});
+
+describe("zakończ grę", () => {
+  it("po pierwszym zwycięzcy kończy grę, reszta według punktów; cofnięcie wraca do gry", () => {
+    let g = play(createGame(players, 101), 101, 30, 60); // Ania kończy, Bartek 71, Celina 41
+    expect(canEndEarly(createGame(players, 101))).toBe(false);
+    expect(canEndEarly(g)).toBe(true);
+    g = endGame(g);
+    expect(isGameOver(g)).toBe(true);
+    expect(standings(g).map((s) => [s.player.id, s.place])).toEqual([
+      ["a", 1],
+      ["c", 2],
+      ["b", 3],
+    ]);
+    expect(() => endGame(g)).toThrow();
+    g = undoLastTurn(g);
+    expect(isGameOver(g)).toBe(false);
+    expect(g.turns).toHaveLength(3);
   });
 });
 

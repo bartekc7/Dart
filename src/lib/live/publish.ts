@@ -16,6 +16,7 @@ export function publishLive(game: GameState) {
       target: game.settings.target,
       players: game.players.map((p) => p.id),
       turns: game.turns,
+      ended: game.endedEarly === true,
       rev: Date.now(),
     },
   }).catch(() => {});

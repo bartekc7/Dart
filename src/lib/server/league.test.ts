@@ -125,6 +125,18 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(rows[0].turns[0].darts).toEqual([60, 1, 40]);
     await deleteGame(db, me, "g4");
 
+    // „Zakończ grę”: Ania kończy, reszta według punktów (Celina 41 zostało, Bartek 71).
+    await expect(saveGame(db, me, { ...game, id: "g8", turns: [{ scored: 101 }, { scored: 30 }] })).rejects.toThrow(
+      /nie jest zakończona/,
+    );
+    await saveGame(db, me, { ...game, id: "g8", ended: true, turns: [101, 30, 60].map((s) => ({ scored: s })) });
+    const ended = await db.query("select member_id, place from game_results where game_id = 'g8' order by place");
+    expect(ended.rows.map((x) => x.member_id)).toEqual([ids.Ania, ids.Celina, ids.Bartek]);
+    await expect(saveGame(db, me, { ...game, id: "g9", ended: true, turns: [{ scored: 30 }] })).rejects.toThrow(
+      /Nieprawidłowe/,
+    );
+    await deleteGame(db, me, "g8");
+
     await deleteGame(db, me, "g1");
     r = await leagueRanking(db, me.league.id);
     expect(r.games).toBe(0);

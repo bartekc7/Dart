@@ -66,6 +66,7 @@ export function activePlayers(state: GameState): Player[] {
 }
 
 export function isGameOver(state: GameState): boolean {
+  if (state.endedEarly) return true;
   const active = activePlayers(state).length;
   return state.players.length === 1 ? active === 0 : active <= 1;
 }
@@ -132,8 +133,26 @@ export function applyTurn(state: GameState, score: number, darts?: number[]): Ga
   return { ...state, turns: [...state.turns, turn] };
 }
 
-/** Cofa ostatnią serię (np. po pomyłce przy wpisywaniu). */
+/** Czy można zakończyć grę teraz: ktoś już skończył, a gra jeszcze trwa. */
+export function canEndEarly(state: GameState): boolean {
+  return !isGameOver(state) && finishOrder(state).length > 0;
+}
+
+/** Kończy grę od razu; pozostali gracze dostają miejsca według tego, ile im zostało. */
+export function endGame(state: GameState): GameState {
+  if (!canEndEarly(state)) throw new Error("Grę można zakończyć, gdy ktoś już skończył.");
+  return { ...state, endedEarly: true };
+}
+
+/**
+ * Cofa ostatnią serię (np. po pomyłce przy wpisywaniu). Po „Zakończ grę”
+ * najpierw cofa samo zakończenie.
+ */
 export function undoLastTurn(state: GameState): GameState {
+  if (state.endedEarly) {
+    const { endedEarly: _, ...rest } = state;
+    return rest;
+  }
   if (state.turns.length === 0) return state;
   return { ...state, turns: state.turns.slice(0, -1) };
 }

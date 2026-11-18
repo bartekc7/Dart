@@ -40,6 +40,11 @@ export interface GameState {
    * wyliczamy z tej listy, więc cofnięcie serii zawsze jest spójne.
    */
   turns: Turn[];
+  /**
+   * Gra zakończona przyciskiem „Zakończ grę”, zanim wszyscy skończyli.
+   * Pozostali dostają miejsca według tego, ile im zostało.
+   */
+  endedEarly?: boolean;
 }
 
 export interface Placement {
