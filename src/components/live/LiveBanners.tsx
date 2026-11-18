@@ -30,7 +30,13 @@ export function LiveBanners({ myId }: { myId: string }) {
     known.current = finished;
   }, [finished, poll.status, refresh]);
 
-  const visible = games.filter((g) => g.id !== localGame?.id && !(g.finished && seen.includes(g.id)));
+  // Jeden baner: trwająca gra, a gdy żadnej nie ma, tylko ostatnia zakończona
+  // (starsze są w „Twoje ostatnie gry”).
+  const others = games.filter((g) => g.id !== localGame?.id);
+  const playing = others.filter((g) => !g.finished);
+  const lastFinished = others.find((g) => g.finished);
+  const visible =
+    playing.length > 0 ? playing : lastFinished && !seen.includes(lastFinished.id) ? [lastFinished] : [];
   if (visible.length === 0) return null;
 
   return (

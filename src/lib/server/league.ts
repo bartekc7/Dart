@@ -274,7 +274,7 @@ export interface LiveGame {
 
 /** Jak długo pokazujemy grę: trwającą (bez ruchu) i zakończoną. */
 const LIVE_STALE = "3 hours";
-const FINISHED_VISIBLE = "30 minutes";
+const FINISHED_VISIBLE = "10 minutes";
 
 /**
  * Telefon, który liczy punkty, wysyła stan gry po każdej serii. `rev` rośnie
