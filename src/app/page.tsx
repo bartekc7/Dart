@@ -1,4 +1,4 @@
-import { ButtonLink } from "@/components/ui/Button";
+import { HomeActions } from "@/components/game/HomeActions";
 
 export default function Home() {
   return (
@@ -17,7 +17,7 @@ export default function Home() {
       </section>
 
       <nav className="flex flex-col gap-3">
-        <ButtonLink href="/gra">Nowa gra</ButtonLink>
+        <HomeActions />
         <p className="text-center text-sm text-muted">Historia i statystyki – wkrótce</p>
       </nav>
     </main>

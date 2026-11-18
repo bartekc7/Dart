@@ -56,3 +56,18 @@ describe("silnik gry do równego", () => {
     expect(() => applyTurn(g, 2.5)).toThrow();
   });
 });
+
+describe("pomocnicze", () => {
+  it("lastTurnOf i rematch", async () => {
+    const { lastTurnOf, rematch } = await import("./engine");
+    let g = createGame(players, 101);
+    expect(lastTurnOf(g, "a")).toBeNull();
+    g = applyTurn(g, 40);
+    g = applyTurn(g, 7);
+    expect(lastTurnOf(g, "a")?.scored).toBe(40);
+    const r = rematch(g);
+    expect(r.turns).toHaveLength(0);
+    expect(r.players).toEqual(players);
+    expect(r.settings.target).toBe(101);
+  });
+});
