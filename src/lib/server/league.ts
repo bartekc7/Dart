@@ -473,3 +473,70 @@ export async function leagueRanking(db: Db, leagueId: string): Promise<{ rows: R
 export async function deleteLiveGame(db: Db, me: Me, id: string) {
   await db.query("delete from live_games where id = $1 and league_id = $2", [id, me.league.id]);
 }
+
+export interface MemberStats {
+  id: string;
+  name: string;
+  color: number;
+  /** Gry ligowe (co najmniej dwóch graczy). */
+  games: number;
+  wins: number;
+  /** Średnie miejsce, null gdy brak gier. */
+  avgPlace: number | null;
+  /** Rzucone serie i średnio punktów na serię (przekroczenia liczą się jako 0). */
+  series: number;
+  avgPerSeries: number;
+  bestSeries: number;
+  busts: number;
+  /** Ostatnie gry, od najnowszej. */
+  recent: MyGame[];
+}
+
+/** Karta gracza: statystyki ze wszystkich gier ligowych gracza. */
+export async function memberStats(db: Db, leagueId: string, memberId: string): Promise<MemberStats> {
+  const member = (await listMembers(db, leagueId)).find((m) => m.id === memberId);
+  if (!member) throw new UserError("Nie ma takiego gracza w lidze.", 404);
+  const { rows } = await db.query(
+    `select g.id, g.finished_at, g.target, g.turns, r.place,
+            (select count(*)::int from game_results x where x.game_id = g.id) as players
+       from game_results r join games g on g.id = r.game_id
+      where r.member_id = $1 and g.league_id = $2
+        and (select count(*) from game_results x where x.game_id = g.id) > 1
+      order by g.finished_at desc`,
+    [memberId, leagueId],
+  );
+  let series = 0;
+  let points = 0;
+  let best = 0;
+  let busts = 0;
+  for (const g of rows) {
+    for (const t of (g.turns as Turn[]) ?? []) {
+      if (t.playerId !== memberId) continue;
+      series++;
+      if (t.bust) busts++;
+      else {
+        points += t.scored;
+        best = Math.max(best, t.scored);
+      }
+    }
+  }
+  return {
+    id: member.id,
+    name: member.name,
+    color: member.color,
+    games: rows.length,
+    wins: rows.filter((g) => g.place === 1).length,
+    avgPlace: rows.length ? rows.reduce((s, g) => s + g.place, 0) / rows.length : null,
+    series,
+    avgPerSeries: series ? points / series : 0,
+    bestSeries: best,
+    busts,
+    recent: rows.slice(0, 10).map((r) => ({
+      id: r.id,
+      finishedAt: new Date(r.finished_at).toISOString(),
+      target: r.target,
+      place: r.place,
+      players: r.players,
+    })),
+  };
+}

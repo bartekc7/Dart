@@ -186,9 +186,13 @@ export function standings(state: GameState): Placement[] {
   }));
 }
 
-/** Nowa gra z tymi samymi graczami i celem. */
+/**
+ * Nowa gra z tymi samymi graczami i celem. Zaczyna kolejny gracz
+ * (pierwszy przechodzi na koniec), żeby nie zaczynał zawsze ten sam.
+ */
 export function rematch(state: GameState): GameState {
-  return createGame(state.players, state.settings.target);
+  const [first, ...rest] = state.players;
+  return createGame(first ? [...rest, first] : [], state.settings.target);
 }
 
 /** Czy zapisany stan pasuje do obecnego formatu (stare zapisy pomijamy). */

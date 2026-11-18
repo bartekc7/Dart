@@ -21,6 +21,7 @@ import {
   requireMe,
   saveGame,
   createRecoveryCode,
+  memberStats,
   recoverWithCode,
   setEntryMode,
   whoAmI,
@@ -168,6 +169,13 @@ describe.skipIf(!url)("liga w bazie", () => {
     await expect(saveGame(db, me, { ...game, id: "g9", ended: true, turns: [{ scored: 30 }] })).rejects.toThrow(
       /Nieprawidłowe/,
     );
+    // Karta gracza: g1 (Bartek 3., seria 50) + g8 (Bartek 3., seria 30).
+    const bartekStats = await memberStats(db, me.league.id, ids.Bartek);
+    expect(bartekStats).toMatchObject({ name: "Bartek", games: 2, wins: 0, avgPlace: 3, series: 2, bestSeries: 50, busts: 0 });
+    expect(bartekStats.avgPerSeries).toBe(40);
+    expect(bartekStats.recent.map((g) => g.id)).toEqual(["g8", "g1"]);
+    expect((await memberStats(db, me.league.id, ids.Ania)).wins).toBe(2);
+    await expect(memberStats(db, me.league.id, "obcy")).rejects.toThrow(/Nie ma takiego gracza/);
     await deleteGame(db, me, "g8");
 
     await deleteGame(db, me, "g1");
