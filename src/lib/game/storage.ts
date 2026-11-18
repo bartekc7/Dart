@@ -12,6 +12,7 @@ import type { GameState } from "./types";
  */
 const GAME_KEY = "dart:game";
 const PLAYERS_KEY = "dart:lastPlayerIds";
+const SEEN_KEY = "dart:seenFinished";
 
 const listeners = new Set<() => void>();
 const cache = new Map<string, { raw: string | null; value: unknown }>();
@@ -67,6 +68,21 @@ export function useStoredGame(): [GameState | null | undefined, (v: GameState | 
 }
 /** Gracze ligi (id) z ostatniej gry na tym telefonie, w kolejności rzucania. */
 export const useLastPlayerIds = () => useStored<string[]>(PLAYERS_KEY);
+
+/** Zakończone gry innych, których wynik ten telefon już obejrzał (chowamy baner). */
+export function useSeenFinished(): [string[], (id: string) => void] {
+  const [raw, set] = useStored<string[]>(SEEN_KEY);
+  const seen = Array.isArray(raw) ? raw : [];
+  const add = useCallback(
+    (id: string) => {
+      const prev = read<string[]>(SEEN_KEY);
+      const list = Array.isArray(prev) ? prev : [];
+      if (!list.includes(id)) set([id, ...list].slice(0, 20));
+    },
+    [set],
+  );
+  return [seen, add];
+}
 
 /** Wybrany motyw (domyślnie systemowy). Zmiana od razu przełącza wygląd. */
 export function useTheme(): [Theme, (t: Theme) => void] {

@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { applyTurn, createGame, isGameOver, standings } from "../game/engine";
 import { ranking, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
-import type { Turn } from "../game/types";
+import type { GameState, Turn } from "../game/types";
 import type { Db } from "./db";
 
 /** Błąd, który pokazujemy użytkownikowi wprost (z kodem HTTP). */
@@ -230,21 +230,23 @@ async function requireMemberOfLeague(db: Db, leagueId: string, memberId: string)
   if (!rowCount) throw new UserError("Nie ma takiego gracza w lidze.", 404);
 }
 
+export interface GameInput {
+  id?: unknown;
+  target?: unknown;
+  players?: unknown;
+  turns?: unknown;
+}
+
 /**
- * Zapis zakończonej gry. Serwer sam przelicza miejsca z serii, więc wyniki są
- * zawsze spójne z zasadami. Ponowny zapis tej samej gry (np. po cofnięciu i
- * poprawce) zastępuje poprzedni.
+ * Odtwarza grę z serii według zasad (nie ufamy wynikom z telefonu) i sprawdza,
+ * że wszyscy gracze są z ligi tego urządzenia.
  */
-export async function saveGame(
-  db: Db,
-  me: Me,
-  input: { id?: unknown; target?: unknown; players?: unknown; turns?: unknown },
-) {
+async function replayGame(db: Db, me: Me, input: GameInput): Promise<GameState> {
   const id = typeof input.id === "string" && input.id.length <= 64 ? input.id : null;
   const target = Number(input.target);
   const playerIds = Array.isArray(input.players) ? input.players.filter((p) => typeof p === "string") : [];
   const turns = Array.isArray(input.turns) ? (input.turns as Turn[]) : [];
-  if (!id || !Number.isInteger(target) || playerIds.length === 0)
+  if (!id || !Number.isInteger(target) || target <= 0 || playerIds.length === 0)
     throw new UserError("Niepełne dane gry.");
 
   const members = await listMembers(db, me.league.id);
@@ -258,6 +260,105 @@ export async function saveGame(
   } catch {
     throw new UserError("Nieprawidłowe serie w grze.");
   }
+  return { ...state, id };
+}
+
+/** Trwająca gra widoczna dla całej ligi (podgląd na żywo). */
+export interface LiveGame {
+  id: string;
+  state: GameState;
+  scorer: { id: string | null; name: string | null };
+  finished: boolean;
+  updatedAt: string;
+}
+
+/** Jak długo pokazujemy grę: trwającą (bez ruchu) i zakończoną. */
+const LIVE_STALE = "3 hours";
+const FINISHED_VISIBLE = "30 minutes";
+
+/**
+ * Telefon, który liczy punkty, wysyła stan gry po każdej serii. `rev` rośnie
+ * z każdą zmianą, więc spóźnione żądanie nie nadpisze nowszego stanu.
+ */
+export async function publishLiveGame(db: Db, me: Me, input: GameInput & { rev?: unknown }) {
+  const rev = Number(input.rev);
+  if (!Number.isSafeInteger(rev) || rev < 0) throw new UserError("Niepełne dane gry.");
+  const state = await replayGame(db, me, input);
+  const { rowCount } = await db.query(
+    `insert into live_games (id, league_id, state, scorer_id, finished, rev)
+     values ($1, $2, $3, $4, $5, $6)
+     on conflict (id) do update
+       set state = excluded.state, scorer_id = excluded.scorer_id, finished = excluded.finished,
+           rev = excluded.rev, updated_at = now()
+     where live_games.league_id = excluded.league_id and live_games.rev < excluded.rev`,
+    [state.id, me.league.id, JSON.stringify(state), me.member.id, isGameOver(state), rev],
+  );
+  return { updated: rowCount === 1 };
+}
+
+const LIVE_SELECT = `
+  select g.id, g.state, g.finished, g.updated_at, g.scorer_id, m.name as scorer_name
+    from live_games g left join members m on m.id = g.scorer_id
+   where g.league_id = $1
+     and ((not g.finished and g.updated_at > now() - interval '${LIVE_STALE}')
+       or (g.finished and g.updated_at > now() - interval '${FINISHED_VISIBLE}'))`;
+
+function toLive(r: Record<string, unknown>): LiveGame {
+  return {
+    id: r.id as string,
+    state: r.state as GameState,
+    scorer: { id: (r.scorer_id as string) ?? null, name: (r.scorer_name as string) ?? null },
+    finished: r.finished as boolean,
+    updatedAt: new Date(r.updated_at as string).toISOString(),
+  };
+}
+
+export async function liveGames(db: Db, leagueId: string): Promise<LiveGame[]> {
+  const { rows } = await db.query(`${LIVE_SELECT} order by g.updated_at desc limit 5`, [leagueId]);
+  return rows.map(toLive);
+}
+
+export async function liveGame(db: Db, leagueId: string, id: string): Promise<LiveGame | null> {
+  const { rows } = await db.query(`${LIVE_SELECT} and g.id = $2`, [leagueId, id]);
+  return rows[0] ? toLive(rows[0]) : null;
+}
+
+/** Ostatnie gry danego gracza (z miejscem), najnowsze pierwsze. */
+export interface MyGame {
+  id: string;
+  finishedAt: string;
+  target: number;
+  place: number;
+  players: number;
+}
+
+export async function recentGamesOf(db: Db, memberId: string, limit = 5): Promise<MyGame[]> {
+  const { rows } = await db.query(
+    `select g.id, g.finished_at, g.target, r.place,
+            (select count(*)::int from game_results x where x.game_id = g.id) as players
+       from game_results r join games g on g.id = r.game_id
+      where r.member_id = $1
+      order by g.finished_at desc limit $2`,
+    [memberId, limit],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    finishedAt: new Date(r.finished_at).toISOString(),
+    target: r.target,
+    place: r.place,
+    players: r.players,
+  }));
+}
+
+/**
+ * Zapis zakończonej gry. Serwer sam przelicza miejsca z serii, więc wyniki są
+ * zawsze spójne z zasadami. Ponowny zapis tej samej gry (np. po cofnięciu i
+ * poprawce) zastępuje poprzedni.
+ */
+export async function saveGame(db: Db, me: Me, input: GameInput) {
+  const state = await replayGame(db, me, input);
+  const id = state.id!;
+  const target = state.settings.target;
   if (!isGameOver(state)) throw new UserError("Gra nie jest zakończona.");
 
   const { rows } = await db.query("select league_id from games where id = $1", [id]);
@@ -306,4 +407,9 @@ export async function leagueRanking(db: Db, leagueId: string): Promise<{ rows: R
   }
   const history = [...games.values()];
   return { rows: ranking(history), games: history.length };
+}
+
+/** Przerwana gra znika z podglądu (np. „Zacznij nową grę” w trakcie). */
+export async function deleteLiveGame(db: Db, me: Me, id: string) {
+  await db.query("delete from live_games where id = $1 and league_id = $2", [id, me.league.id]);
 }

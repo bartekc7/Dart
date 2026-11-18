@@ -74,6 +74,16 @@ create table if not exists game_results (
   place integer not null,
   primary key (game_id, member_id)
 );
+create table if not exists live_games (
+  id text primary key,
+  league_id text not null references leagues(id) on delete cascade,
+  state jsonb not null,
+  scorer_id text references members(id) on delete set null,
+  finished boolean not null default false,
+  rev bigint not null default 0,
+  updated_at timestamptz not null default now()
+);
+create index if not exists live_games_league on live_games (league_id, updated_at desc);
 `;
 
 export async function ensureSchema(db: Db) {

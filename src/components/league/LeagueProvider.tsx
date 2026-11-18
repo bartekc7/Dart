@@ -3,12 +3,13 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { api, ApiError } from "@/lib/api";
 import type { RankingRow } from "@/lib/game/history";
-import type { Me, Member } from "@/lib/server/league";
+import type { Me, Member, MyGame } from "@/lib/server/league";
 
 export interface LeagueData {
   me: Me | null;
   members: Member[];
   ranking: { rows: RankingRow[]; games: number };
+  myGames: MyGame[];
 }
 
 type State =
@@ -18,7 +19,7 @@ type State =
 
 const LeagueContext = createContext<{ state: State; refresh: () => Promise<void> } | null>(null);
 
-const EMPTY: LeagueData = { me: null, members: [], ranking: { rows: [], games: 0 } };
+const EMPTY: LeagueData = { me: null, members: [], ranking: { rows: [], games: 0 }, myGames: [] };
 
 export function LeagueProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading" });

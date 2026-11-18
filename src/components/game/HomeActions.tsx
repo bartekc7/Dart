@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { isGameOver } from "@/lib/game/engine";
+import { removeLive } from "@/lib/live/publish";
 import { useStoredGame } from "@/lib/game/storage";
 
 export function HomeActions() {
@@ -18,6 +19,7 @@ export function HomeActions() {
       <Button
         variant="secondary"
         onClick={() => {
+          removeLive(game.id);
           setGame(null);
           router.push("/gra");
         }}

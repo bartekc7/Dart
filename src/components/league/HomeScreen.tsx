@@ -4,6 +4,8 @@ import Link from "next/link";
 import { HomeActions } from "@/components/game/HomeActions";
 import { Ranking } from "@/components/game/Ranking";
 import { useLeague } from "./LeagueProvider";
+import { LiveBanners } from "@/components/live/LiveBanners";
+import { MyGames } from "./MyGames";
 import { LoadError, Loading } from "./StatusScreens";
 import { Welcome } from "./Welcome";
 
@@ -11,7 +13,7 @@ export function HomeScreen() {
   const { state } = useLeague();
   if (state.status === "loading") return <Loading />;
   if (state.status === "error") return <LoadError {...state} />;
-  const { me, ranking } = state.data;
+  const { me, ranking, myGames } = state.data;
   if (!me) return <Welcome />;
 
   return (
@@ -33,8 +35,11 @@ export function HomeScreen() {
         <span className="text-sm font-semibold text-muted">Zaproś ›</span>
       </Link>
 
-      <div className="flex-1">
+      <LiveBanners myId={me.member.id} />
+
+      <div className="flex flex-1 flex-col gap-6">
         <Ranking rows={ranking.rows} games={ranking.games} myId={me.member.id} />
+        <MyGames games={myGames} />
       </div>
 
       <nav className="sticky bottom-0 flex flex-col gap-3 bg-board pt-2">
