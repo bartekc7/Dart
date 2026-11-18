@@ -30,7 +30,14 @@ export function LiveBanners({ myId }: { myId: string }) {
     known.current = finished;
   }, [finished, poll.status, refresh]);
 
-  const visible = games.filter((g) => g.id !== localGame?.id && !(g.finished && seen.includes(g.id)));
+  // Jeden baner: trwająca gra, a gdy żadnej nie ma, tylko ostatnia zakończona
+  // (starsze są w „Twoje ostatnie gry”).
+  // Gry liczone na tym telefonie pomijamy, bo ich wyniki widać na ekranie gry.
+  const mine = (g: LiveGame) => g.id === localGame?.id;
+  const playing = games.filter((g) => !g.finished && !mine(g));
+  const lastFinished = games.find((g) => g.finished);
+  const showFinished = lastFinished && !mine(lastFinished) && !seen.includes(lastFinished.id);
+  const visible = playing.length > 0 ? playing : showFinished ? [lastFinished] : [];
   if (visible.length === 0) return null;
 
   return (

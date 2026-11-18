@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { FinalStandings } from "@/components/game/FinalStandings";
+import { FinalStandings, GameStats } from "@/components/game/FinalStandings";
 import { useLeague } from "@/components/league/LeagueProvider";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
 import { Button, ButtonLink } from "@/components/ui/Button";
@@ -157,7 +157,10 @@ function Finished({ game, myId }: { game: LiveGame; myId: string }) {
         </h2>
         <p className="mt-1 text-muted">Gra do {game.state.settings.target} · klasyfikacja końcowa</p>
       </section>
-      <FinalStandings game={game.state} myId={myId} />
+      <div className="mt-6 flex flex-col gap-4">
+        <FinalStandings game={game.state} myId={myId} />
+        <GameStats game={game.state} />
+      </div>
       <div className="mt-auto pt-6">
         <Button
           onClick={() => {
