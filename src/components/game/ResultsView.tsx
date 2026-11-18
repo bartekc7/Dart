@@ -65,7 +65,7 @@ export function ResultsView({
       <section className="flex flex-col items-center pt-2 text-center">
         <h1 className="text-3xl font-bold">🏆 {winner.player.name} wygrywa!</h1>
         <p className="mt-1 text-muted">Gra do {game.settings.target}</p>
-        <SaveStatus save={save} onRetry={saveGame} />
+        <SaveStatus save={save} onRetry={saveGame} solo={game.players.length === 1} />
       </section>
 
       <FinalStandings game={game} />
@@ -90,9 +90,13 @@ export function ResultsView({
   );
 }
 
-function SaveStatus({ save, onRetry }: { save: Save; onRetry: () => void }) {
+function SaveStatus({ save, onRetry, solo }: { save: Save; onRetry: () => void; solo: boolean }) {
   if (save.status === "saving") {
     return <p className="mt-2 text-sm text-muted">Zapisuję wynik w lidze…</p>;
+  }
+  if (save.status === "saved" && solo) {
+    // Ranking liczy tylko gry co najmniej dwóch graczy.
+    return <p className="mt-2 text-sm text-muted">Gra w pojedynkę – nie liczy się do rankingu</p>;
   }
   if (save.status === "saved") {
     return <p className="mt-2 text-sm font-medium text-green">✓ Zapisano w rankingu ligi</p>;

@@ -97,6 +97,12 @@ export function SetupView({
           </p>
         )}
 
+        {players.length === 1 && (
+          <p className="mt-2 text-sm text-muted">
+            Gra w pojedynkę nie liczy się do rankingu. Dodaj co najmniej jeszcze jednego gracza.
+          </p>
+        )}
+
         {players.length > 1 && (
           <button
             type="button"
