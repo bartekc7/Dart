@@ -8,8 +8,10 @@ import {
   currentPlayer,
   endGame,
   formatDarts,
+  isValidDart,
   lastTurnOf,
   placeOf,
+  playerStats,
   remainingFor,
   undoLastTurn,
 } from "@/lib/game/engine";
@@ -18,10 +20,14 @@ import { useEntryMode, usePlayerColors } from "@/components/league/LeagueProvide
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { useWakeLock } from "@/lib/useWakeLock";
+import { useVoice } from "@/lib/game/storage";
+import { say } from "@/lib/speech";
 import { DartPad } from "./DartPad";
 import { Keypad } from "./Keypad";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
+/** Do komunikatu głosowego: „kończy na drugim miejscu”. */
+const ORDINALS = ["pierwszym", "drugim", "trzecim", "czwartym", "piątym", "szóstym", "siódmym", "ósmym", "dziewiątym", "dziesiątym"];
 
 type Feedback = { text: string; bust: boolean } | null;
 
@@ -39,6 +45,7 @@ export function PlayView({
   const colorOf = usePlayerColors();
   // Telefon leży przy tablicy: ekran nie gaśnie między seriami.
   useWakeLock();
+  const [voice] = useVoice();
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
@@ -55,6 +62,15 @@ export function PlayView({
           ? { text: `${player.name} kończy na ${place}. miejscu! 🎯`, bust: false }
           : { text: `${player.name}: ${darts && darts.length > 1 ? shown : `+${shown}`}, zostało ${remainingFor(next, player.id)}`, bust: false },
     );
+    if (voice) {
+      const nextPlayer = currentPlayer(next);
+      const first = turn.bust
+        ? `${player.name}, za dużo.`
+        : place
+          ? `${player.name} kończy na ${ORDINALS[place - 1] ?? `${place}.`} miejscu!`
+          : `${player.name}, zostało ${remainingFor(next, player.id)}.`;
+      say(nextPlayer ? `${first} Teraz rzuca ${nextPlayer.name}.` : `${first} Koniec gry.`);
+    }
     // Krótkie potwierdzenie dotykiem (Android; iPhone nie obsługuje wibracji w przeglądarce).
     vibrate(turn.bust ? [70, 50, 70] : place ? [30, 40, 120] : 15);
     setInput("");
@@ -125,32 +141,45 @@ export function PlayView({
           const active = p.id === player.id;
           const place = placeOf(game, p.id);
           const last = lastTurnOf(game, p.id);
+          const left = remainingFor(game, p.id);
+          const stats = playerStats(game, p.id);
+          // Blisko końca: brakuje tyle, ile da się trafić jedną rzutką.
+          const close = !place && left > 0 && isValidDart(left);
           return (
             <li
               key={p.id}
               aria-current={active || undefined}
               className={`flex min-w-0 items-center gap-2 rounded-xl px-3 py-1 land:py-2 ${
-                active ? "" : place ? "bg-surface/50 ring-1 ring-line/50" : "bg-surface ring-1 ring-line"
+                active ? "" : place ? "bg-surface/50 ring-1 ring-line/50" : close ? "bg-surface ring-2 ring-green/60" : "bg-surface ring-1 ring-line"
               }`}
               style={active ? activeRowStyle(colorOf(p.id)) : undefined}
             >
               <PlayerDot color={colorOf(p.id)} big={active} />
-              <span className={`flex-1 truncate land:text-xl ${active ? "font-bold" : "font-medium"} ${place ? "text-muted" : ""}`}>{p.name}</span>
+              <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                <span className={`truncate land:text-xl ${active ? "font-bold" : "font-medium"} ${place ? "text-muted" : ""}`}>{p.name}</span>
+                {!place && last && (
+                  <span className="truncate text-xs text-muted land:text-sm">
+                    <span className={last.bust ? "text-red line-through" : ""}>
+                      {last.darts && last.darts.length > 1 ? formatDarts(last.darts) : last.bust ? last.scored : `+${last.scored}`}
+                    </span>
+                    {" · śr. "}
+                    {Math.round(stats.average)}
+                  </span>
+                )}
+              </span>
               {place ? (
                 <span className="text-lg font-bold" aria-label={`${place}. miejsce`}>
                   {MEDALS[place - 1] ?? `${place}.`}
                 </span>
               ) : (
-                <>
-                  {last && game.players.length <= 3 && (
-                    <span className={`text-sm land:text-base ${last.bust ? "text-red line-through" : "text-muted"}`}>
-                      {last.bust ? last.scored : `+${last.scored}`}
+                <span className="flex items-center gap-1.5">
+                  {close && (
+                    <span className="rounded-full bg-green/15 px-1.5 text-xs font-bold text-green" title="Może skończyć jedną rzutką">
+                      🎯
                     </span>
                   )}
-                  <span className="text-right font-mono text-xl font-bold tabular-nums land:text-3xl">
-                    {remainingFor(game, p.id)}
-                  </span>
-                </>
+                  <span className="text-right font-mono text-xl font-bold tabular-nums land:text-3xl">{left}</span>
+                </span>
               )}
             </li>
           );

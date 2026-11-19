@@ -22,6 +22,7 @@ import {
   saveGame,
   createRecoveryCode,
   memberStats,
+  leagueGames,
   recoverWithCode,
   setEntryMode,
   whoAmI,
@@ -176,9 +177,14 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(bartekStats.recent.map((g) => g.id)).toEqual(["g8", "g1"]);
     expect((await memberStats(db, me.league.id, ids.Ania)).wins).toBe(2);
     await expect(memberStats(db, me.league.id, "obcy")).rejects.toThrow(/Nie ma takiego gracza/);
+    // Historia: obie gry od najnowszej. Usunąć może zapisujący albo organizator, nie inny gracz.
+    expect((await leagueGames(db, me.league.id)).map((g) => g.id)).toEqual(["g8", "g1"]);
+    const celinaTel = newDeviceToken();
+    await claimDevice(db, celinaTel, await createClaimToken(db, await requireMe(db, bartek), ids.Celina));
+    await expect(deleteGame(db, await requireMe(db, celinaTel), "g8")).rejects.toThrow(/tylko organizator/);
     await deleteGame(db, me, "g8");
 
-    await deleteGame(db, me, "g1");
+    await deleteGame(db, await requireMe(db, bartek), "g1"); // Bartek jest organizatorem
     r = await leagueRanking(db, me.league.id);
     expect(r.games).toBe(0);
   });

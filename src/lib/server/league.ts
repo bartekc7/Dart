@@ -438,8 +438,46 @@ export async function saveGame(db: Db, me: Me, input: GameInput) {
   }
 }
 
+/**
+ * Usunięcie gry z rankingu: organizator (np. gra zapisana przez pomyłkę) albo
+ * telefon, który ją zapisał (cofnięcie ostatniej serii na ekranie wyników).
+ */
 export async function deleteGame(db: Db, me: Me, id: string) {
+  const { rows } = await db.query("select created_by from games where id = $1 and league_id = $2", [
+    id,
+    me.league.id,
+  ]);
+  if (!rows[0]) return;
+  if (!me.member.isOrganizer && rows[0].created_by !== me.member.id)
+    throw new UserError("Grę może usunąć tylko organizator albo osoba, która ją zapisała.", 403);
   await db.query("delete from games where id = $1 and league_id = $2", [id, me.league.id]);
+}
+
+export const HISTORY_GAMES = 50;
+
+/** Historia gier ligi (od najnowszej) z miejscami graczy. */
+export async function leagueGames(db: Db, leagueId: string, limit = HISTORY_GAMES): Promise<GameRecord[]> {
+  const { rows } = await db.query(
+    `with recent as (
+       select id, target, finished_at from games where league_id = $1
+        order by finished_at desc limit $2)
+     select recent.id, recent.target, recent.finished_at, r.member_id, m.name, r.place
+       from recent join game_results r on r.game_id = recent.id join members m on m.id = r.member_id
+      order by recent.finished_at desc, recent.id, r.place`,
+    [leagueId, limit],
+  );
+  const games = new Map<string, GameRecord>();
+  for (const r of rows) {
+    const g: GameRecord = games.get(r.id) ?? {
+      id: r.id,
+      finishedAt: new Date(r.finished_at).toISOString(),
+      target: r.target,
+      results: [],
+    };
+    g.results.push({ id: r.member_id, name: r.name, place: r.place });
+    games.set(r.id, g);
+  }
+  return [...games.values()];
 }
 
 export async function leagueRanking(db: Db, leagueId: string): Promise<{ rows: RankingRow[]; games: number }> {
