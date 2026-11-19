@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError } from "@/components/ui/Field";
 import { api } from "@/lib/api";
+import { useStoredGame } from "@/lib/game/storage";
 import type { ClearMode } from "@/lib/server/league";
 import { useLeague } from "./LeagueProvider";
 
@@ -15,6 +16,7 @@ const MODES: { value: ClearMode; label: string; hint: string }[] = [
 /** Organizator czyści ligę (np. po testach). Wymaga wpisania nazwy ligi. */
 export function ClearLeague({ leagueName }: { leagueName: string }) {
   const { refresh } = useLeague();
+  const [, setGame] = useStoredGame();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<ClearMode>("games");
   const [typed, setTyped] = useState("");
@@ -29,6 +31,8 @@ export function ClearLeague({ leagueName }: { leagueName: string }) {
     setError(null);
     try {
       await api("/api/league/clear", { body: { mode, leagueName: typed } });
+      // Trwająca gra na tym telefonie też znika (na serwerze kasujemy podgląd na żywo).
+      setGame(null);
       setDone(mode === "all" ? "Liga wyczyszczona: usunięto gry i graczy." : "Usunięto wszystkie gry.");
       setOpen(false);
       setTyped("");

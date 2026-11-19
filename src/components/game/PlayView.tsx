@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   applyTurn,
@@ -22,6 +23,7 @@ import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { useWakeLock } from "@/lib/useWakeLock";
 import { useVoice } from "@/lib/game/storage";
 import { say } from "@/lib/speech";
+import { removeLive } from "@/lib/live/publish";
 import { DartPad } from "./DartPad";
 import { Keypad } from "./Keypad";
 
@@ -42,6 +44,8 @@ export function PlayView({
   const [feedback, setFeedback] = useState<Feedback>(null);
   const mode = useEntryMode();
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const router = useRouter();
   const colorOf = usePlayerColors();
   // Telefon leży przy tablicy: ekran nie gaśnie między seriami.
   useWakeLock();
@@ -75,6 +79,13 @@ export function PlayView({
     vibrate(turn.bust ? [70, 50, 70] : place ? [30, 40, 120] : 15);
     setInput("");
     onChange(next);
+  }
+
+  /** Anuluje grę całkiem: nie trafia do rankingu, znika z podglądu u innych. */
+  function cancelGame() {
+    removeLive(game.id);
+    onChange(null);
+    router.push("/");
   }
 
   function finishNow() {
@@ -184,23 +195,54 @@ export function PlayView({
             </li>
           );
         })}
-        {canEndEarly(game) && (
-          <li className="col-span-full pt-1">
+        <li className={`col-span-full grid gap-2 pt-1 ${canEndEarly(game) ? "grid-cols-2" : "grid-cols-1"}`}>
+          {canEndEarly(game) && (
             <button
               type="button"
-              onClick={() => setConfirmEnd(!confirmEnd)}
+              onClick={() => {
+                setConfirmEnd(!confirmEnd);
+                setConfirmCancel(false);
+              }}
               aria-expanded={confirmEnd}
               className="w-full rounded-xl border border-dashed border-line py-2 text-sm font-semibold text-muted active:bg-surface-2"
             >
               🏁 Zakończ grę teraz
             </button>
-          </li>
-        )}
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setConfirmCancel(!confirmCancel);
+              setConfirmEnd(false);
+            }}
+            aria-expanded={confirmCancel}
+            className="w-full rounded-xl border border-dashed border-line py-2 text-sm font-semibold text-muted active:bg-surface-2"
+          >
+            ✕ Anuluj grę
+          </button>
+        </li>
       </ol>
 
       {/* Na tablecie i komputerze klawiatura zajmuje prawą kolumnę na całą wysokość. */}
       <div className="shrink-0 land:col-start-2 land:row-span-2 land:row-start-1 land:flex land:min-h-0 land:flex-col">
-        {confirmEnd && canEndEarly(game) ? (
+        {confirmCancel ? (
+          <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4 ring-1 ring-line">
+            <p className="text-lg font-semibold">Anulować grę?</p>
+            <p className="text-muted">Wszystkie serie przepadną, a gra nie trafi do rankingu. Tego nie da się cofnąć.</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmCancel(false)}
+                className="min-h-14 rounded-2xl bg-surface text-lg font-semibold ring-1 ring-line"
+              >
+                Gramy dalej
+              </button>
+              <button type="button" onClick={cancelGame} className="min-h-14 rounded-2xl bg-red text-lg font-semibold text-white">
+                Anuluj grę
+              </button>
+            </div>
+          </div>
+        ) : confirmEnd && canEndEarly(game) ? (
           // Potwierdzenie w miejscu klawiatury, żeby zawsze było widać przyciski.
           <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4 ring-1 ring-line">
             <p className="text-lg font-semibold">Zakończyć grę teraz?</p>
