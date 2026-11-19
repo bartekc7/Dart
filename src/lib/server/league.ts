@@ -191,9 +191,12 @@ export async function addMember(db: Db, me: Me, playerName: unknown): Promise<Me
   return (await listMembers(db, me.league.id)).find((m) => m.id === id)!;
 }
 
-/** Organizator tworzy jednorazowy link, który przypisuje gracza do nowego telefonu. */
+/**
+ * Jednorazowy link, który przypisuje gracza do kolejnego telefonu (poprzednie zostają).
+ * Dla innych graczy tworzy go organizator, dla siebie (drugie urządzenie) każdy.
+ */
 export async function createClaimToken(db: Db, me: Me, memberId: string): Promise<string> {
-  requireOrganizer(me);
+  if (memberId !== me.member.id) requireOrganizer(me);
   await requireMemberOfLeague(db, me.league.id, memberId);
   const token = randomBytes(18).toString("base64url");
   await db.query(

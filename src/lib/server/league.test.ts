@@ -81,6 +81,14 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(await claimPreview(db, claim)).toEqual({ playerName: "Ania", leagueName: "Biuro" });
     await claimDevice(db, nowyTelefonAni, claim);
     expect((await requireMe(db, nowyTelefonAni)).member.name).toBe("Ania");
+    // Drugie urządzenie: stary telefon dalej działa, oba mają uprawnienia organizatora.
+    expect((await requireMe(db, nowyTelefonAni)).member.isOrganizer).toBe(true);
+    expect((await requireMe(db, ania)).member.name).toBe("Ania");
+    // Zwykły gracz może zrobić link tylko dla siebie.
+    const bartekDrugi = newDeviceToken();
+    await claimDevice(db, bartekDrugi, await createClaimToken(db, bartekMe, bartekMe.member.id));
+    expect((await requireMe(db, bartekDrugi)).member.name).toBe("Bartek");
+    expect((await requireMe(db, bartek)).member.name).toBe("Bartek");
     await expect(claimDevice(db, newDeviceToken(), claim)).rejects.toThrow(/wygasł albo został już użyty/);
   });
 
