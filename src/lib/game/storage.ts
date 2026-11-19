@@ -97,3 +97,11 @@ export function useTheme(): [Theme, (t: Theme) => void] {
   );
   return [theme, setTheme];
 }
+
+/** Komunikat głosowy po serii – ustawienie tego telefonu (to on stoi przy tablicy). */
+const VOICE_KEY = "dart:voice";
+
+export function useVoice(): [boolean, (on: boolean) => void] {
+  const [raw, set] = useStored<boolean>(VOICE_KEY);
+  return [raw === true, (on) => set(on)];
+}
