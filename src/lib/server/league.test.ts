@@ -23,6 +23,8 @@ import {
   createRecoveryCode,
   memberStats,
   leagueGames,
+  removeMember,
+  clearLeague,
   recoverWithCode,
   setEntryMode,
   whoAmI,
@@ -236,5 +238,29 @@ describe.skipIf(!url)("liga w bazie", () => {
     await expect(
       publishLiveGame(db, other, { id: "y", target: 101, players: [ids[0]], turns: [], rev: 1 }),
     ).rejects.toThrow(/spoza ligi/);
+  });
+  it("usuwanie gracza i czyszczenie ligi (organizator)", async () => {
+    const org = newDeviceToken();
+    await createLeague(db, org, "Czyszczenie", "Org");
+    const me = await requireMe(db, org);
+    const t1 = newDeviceToken();
+    await joinLeague(db, t1, me.league.joinCode, "Gracz1");
+    await addMember(db, me, "Gracz2");
+    const ids = Object.fromEntries((await listMembers(db, me.league.id)).map((m) => [m.name, m.id]));
+    const players = [ids.Org, ids.Gracz1, ids.Gracz2];
+    await saveGame(db, me, { id: "c1", target: 101, players, turns: [101, 50, 101].map((x) => ({ scored: x })) });
+
+    await expect(removeMember(db, await requireMe(db, t1), ids.Gracz2)).rejects.toThrow(/organizator/);
+    await expect(removeMember(db, me, ids.Org)).rejects.toThrow(/siebie/);
+    await removeMember(db, me, ids.Gracz1);
+    expect(await whoAmI(db, t1)).toBeNull(); // telefon odłączony
+    expect((await listMembers(db, me.league.id)).map((m) => m.name).sort()).toEqual(["Gracz2", "Org"]);
+
+    await expect(clearLeague(db, me, "games", "zła nazwa")).rejects.toThrow(/nazwę ligi/);
+    await clearLeague(db, me, "games", " czyszczenie ");
+    expect(await leagueGames(db, me.league.id)).toEqual([]);
+    expect(await listMembers(db, me.league.id)).toHaveLength(2);
+    await clearLeague(db, me, "all", "Czyszczenie");
+    expect((await listMembers(db, me.league.id)).map((m) => m.name)).toEqual(["Org"]);
   });
 });

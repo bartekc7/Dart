@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import type { Member } from "@/lib/server/league";
 import { AddMemberForm } from "./AddMemberForm";
 import { useLeague } from "./LeagueProvider";
+import { ClearLeague } from "./ClearLeague";
 import { RecoveryCode } from "./RecoveryCode";
 import { ShareLink } from "./ShareLink";
 import { LoadError, Loading } from "./StatusScreens";
@@ -78,6 +79,8 @@ export function LeaguePanel() {
         </h2>
         <AddMemberForm />
       </section>
+
+      {organizer && <ClearLeague leagueName={me.league.name} />}
     </div>
   );
 }
@@ -160,6 +163,13 @@ function MemberActions({ member }: { member: Member }) {
       setClaimUrl(`${window.location.origin}/przypisz/${token}`);
     });
 
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const removeMember = () =>
+    run(async () => {
+      await api(`/api/members/${member.id}`, { method: "DELETE" });
+      await refresh();
+    });
+
   const makeOrganizer = () =>
     run(async () => {
       await api(`/api/members/${member.id}/organizer`, { method: "POST" });
@@ -199,6 +209,26 @@ function MemberActions({ member }: { member: Member }) {
       ) : (
         <Button variant="ghost" onClick={() => setConfirm(true)} className="min-h-11 text-base">
           👑 Zrób organizatorem
+        </Button>
+      )}
+      {confirmRemove ? (
+        <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3">
+          <p className="text-sm">
+            Usunąć <strong>{member.name}</strong> z ligi? Wyniki gracza znikną z rankingu i historii, a telefon zostanie
+            odłączony. Tego nie da się cofnąć.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" onClick={() => setConfirmRemove(false)} disabled={busy}>
+              Anuluj
+            </Button>
+            <Button onClick={removeMember} disabled={busy}>
+              Usuń
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button variant="ghost" onClick={() => setConfirmRemove(true)} className="min-h-11 text-base text-red">
+          🗑 Usuń gracza
         </Button>
       )}
       <FormError message={error} />
