@@ -276,6 +276,35 @@ export async function setEntryMode(db: Db, me: Me, mode: unknown) {
   await db.query("update leagues set entry_mode = $2 where id = $1", [me.league.id, mode]);
 }
 
+/**
+ * Organizator usuwa gracza z ligi: znika z listy, rankingu i historii, a jego
+ * telefony zostają odłączone. Organizatora (siebie) usunąć się nie da.
+ */
+export async function removeMember(db: Db, me: Me, memberId: string) {
+  requireOrganizer(me);
+  if (memberId === me.member.id) throw new UserError("Nie możesz usunąć siebie.");
+  await requireMemberOfLeague(db, me.league.id, memberId);
+  await db.query("delete from members where id = $1 and league_id = $2", [memberId, me.league.id]);
+}
+
+export type ClearMode = "games" | "all";
+
+/**
+ * „Wyczyść ligę”: same gry (ranking od zera) albo gry i wszyscy gracze poza
+ * organizatorem. Dla bezpieczeństwa trzeba podać nazwę ligi.
+ */
+export async function clearLeague(db: Db, me: Me, mode: unknown, confirmName: unknown) {
+  requireOrganizer(me);
+  if (mode !== "games" && mode !== "all") throw new UserError("Nieznany sposób czyszczenia.");
+  const typed = typeof confirmName === "string" ? confirmName.trim().toLowerCase() : "";
+  if (typed !== me.league.name.trim().toLowerCase())
+    throw new UserError("Wpisz dokładnie nazwę ligi, żeby potwierdzić.");
+  await db.query("delete from games where league_id = $1", [me.league.id]);
+  await db.query("delete from live_games where league_id = $1", [me.league.id]);
+  if (mode === "all")
+    await db.query("delete from members where league_id = $1 and id <> $2", [me.league.id, me.member.id]);
+}
+
 async function requireMemberOfLeague(db: Db, leagueId: string, memberId: string) {
   const { rowCount } = await db.query("select 1 from members where id = $1 and league_id = $2", [
     memberId,
