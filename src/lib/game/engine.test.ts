@@ -144,7 +144,11 @@ describe("pomocnicze", () => {
     expect(lastTurnOf(g, "c")).toBeNull();
     const r = rematch(g);
     expect(r.turns).toHaveLength(0);
-    expect(r.players).toEqual(players);
+    // Zaczyna kolejny gracz; po pełnym obrocie wraca pierwotna kolejność.
+    expect(r.players.map((p) => p.id)).toEqual([...players.slice(1), players[0]].map((p) => p.id));
+    let back = g;
+    for (let i = 0; i < players.length; i++) back = rematch(back);
+    expect(back.players).toEqual(players);
   });
 
   it("odrzuca zapis w starym formacie", () => {

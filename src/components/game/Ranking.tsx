@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePlayerColors } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import type { RankingRow } from "@/lib/game/history";
@@ -9,6 +11,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 /** Ranking graczy ligi z ostatnich gier. */
 export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: number; myId?: string }) {
   const colorOf = usePlayerColors();
+  const router = useRouter();
   if (rows.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-line p-4 text-center text-sm text-muted">
@@ -24,6 +27,7 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
           Ranking
         </h2>
         <p className="text-xs text-muted">
+          Dotknij gracza po statystyki ·{" "}
           {games === 1 ? "z ostatniej gry" : `z ostatnich ${games} gier`}
         </p>
       </div>
@@ -41,14 +45,28 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
           {rows.map((r, i) => {
             const me = r.id === myId;
             return (
-              <tr key={r.id ?? r.name} className={me ? "bg-cream/15" : "bg-surface"}>
+              <tr
+                key={r.id ?? r.name}
+                onClick={r.id ? () => router.push(`/gracz/${r.id}`) : undefined}
+                className={`${me ? "bg-cream/15" : "bg-surface"} ${r.id ? "cursor-pointer active:opacity-70" : ""}`}
+              >
                 <td className={`rounded-l-xl py-2 pl-3 text-center ${me ? "shadow-[inset_3px_0_0_var(--color-cream)]" : ""}`}>
                   {MEDALS[i] ?? <span className="font-mono text-sm text-muted">{i + 1}.</span>}
                 </td>
                 <td className="py-2 pl-2">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <PlayerDot color={colorOf(r.id)} />
-                    <span className={`truncate ${me ? "font-bold" : "font-medium"}`}>{r.name}</span>
+                    {r.id ? (
+                      <Link
+                        href={`/gracz/${r.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`truncate ${me ? "font-bold" : "font-medium"}`}
+                      >
+                        {r.name}
+                      </Link>
+                    ) : (
+                      <span className={`truncate ${me ? "font-bold" : "font-medium"}`}>{r.name}</span>
+                    )}
                     {me && (
                       <span className="shrink-0 rounded-full bg-cream px-1.5 text-[11px] font-bold text-board">TY</span>
                     )}

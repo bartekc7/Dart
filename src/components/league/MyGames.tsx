@@ -14,12 +14,12 @@ function when(iso: string) {
 }
 
 /** Ostatnie wyniki tego gracza. */
-export function MyGames({ games }: { games: MyGame[] }) {
+export function MyGames({ games, title = "Twoje ostatnie gry" }: { games: MyGame[]; title?: string }) {
   if (games.length === 0) return null;
   return (
     <section aria-labelledby="my-games-title">
       <h2 id="my-games-title" className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
-        Twoje ostatnie gry
+        {title}
       </h2>
       <ul className="flex flex-col gap-1.5">
         {games.map((g) => (

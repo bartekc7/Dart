@@ -17,6 +17,7 @@ import type { GameState } from "@/lib/game/types";
 import { useEntryMode, usePlayerColors } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
+import { useWakeLock } from "@/lib/useWakeLock";
 import { DartPad } from "./DartPad";
 import { Keypad } from "./Keypad";
 
@@ -36,6 +37,8 @@ export function PlayView({
   const mode = useEntryMode();
   const [confirmEnd, setConfirmEnd] = useState(false);
   const colorOf = usePlayerColors();
+  // Telefon leży przy tablicy: ekran nie gaśnie między seriami.
+  useWakeLock();
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
