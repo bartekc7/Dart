@@ -23,7 +23,9 @@ export function LeaguePanel() {
   if (!me) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-        <p className="text-muted">Ten telefon nie należy jeszcze do żadnej ligi.</p>
+        <p className="text-muted">
+          Ten telefon nie należy jeszcze do żadnej ligi.
+        </p>
         <ButtonLink href="/" className="max-w-xs">
           Wróć na start
         </ButtonLink>
@@ -39,7 +41,8 @@ export function LeaguePanel() {
       <section>
         <h2 className="text-xl font-bold">{me.league.name}</h2>
         <p className="mt-1 mb-4 text-muted">
-          Wyślij link lub pokaż kod QR. Kto go otworzy, poda swoją nazwę i od razu jest w lidze.
+          Wyślij link lub pokaż kod QR. Kto go otworzy, poda swoją nazwę i od
+          razu jest w lidze.
         </p>
         <ShareLink
           url={joinUrl}
@@ -58,7 +61,7 @@ export function LeaguePanel() {
               key={m.id}
               member={m}
               isMe={m.id === me.member.id}
-              canManage={organizer && m.id !== me.member.id}
+              canManage={organizer || m.id === me.member.id}
               open={open === m.id}
               onToggle={() => setOpen(open === m.id ? null : m.id)}
             />
@@ -66,7 +69,8 @@ export function LeaguePanel() {
         </ul>
         {organizer && (
           <p className="mt-2 text-sm text-muted">
-            Ktoś zmienił telefon? Dotknij jego nazwy i wyślij mu link „Nowy telefon”.
+            Ktoś zmienił telefon? Dotknij jego nazwy i wyślij mu link „Nowy
+            telefon”.
           </p>
         )}
       </section>
@@ -109,7 +113,9 @@ function MemberRow({
           organizator
         </span>
       )}
-      {!member.hasDevice && <span className="text-xs text-muted">bez telefonu</span>}
+      {!member.hasDevice && (
+        <span className="text-xs text-muted">bez telefonu</span>
+      )}
     </>
   );
 
@@ -122,7 +128,9 @@ function MemberRow({
   }
 
   return (
-    <li className={`rounded-2xl bg-surface ring-1 ${open ? "ring-cream" : "ring-line"}`}>
+    <li
+      className={`rounded-2xl bg-surface ring-1 ${open ? "ring-cream" : "ring-line"}`}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -130,14 +138,18 @@ function MemberRow({
         className="flex min-h-14 w-full items-center gap-2 px-4 text-left"
       >
         {label}
-        <span className={`text-muted transition-transform ${open ? "rotate-90" : ""}`}>›</span>
+        <span
+          className={`text-muted transition-transform ${open ? "rotate-90" : ""}`}
+        >
+          ›
+        </span>
       </button>
-      {open && <MemberActions member={member} />}
+      {open && <MemberActions member={member} self={isMe} />}
     </li>
   );
 }
 
-function MemberActions({ member }: { member: Member }) {
+function MemberActions({ member, self }: { member: Member; self: boolean }) {
   const { refresh } = useLeague();
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
@@ -157,9 +169,12 @@ function MemberActions({ member }: { member: Member }) {
 
   const newDevice = () =>
     run(async () => {
-      const { token } = await api<{ token: string }>(`/api/members/${member.id}/claim`, {
-        method: "POST",
-      });
+      const { token } = await api<{ token: string }>(
+        `/api/members/${member.id}/claim`,
+        {
+          method: "POST",
+        },
+      );
       setClaimUrl(`${window.location.origin}/przypisz/${token}`);
     });
 
@@ -181,55 +196,101 @@ function MemberActions({ member }: { member: Member }) {
       {claimUrl ? (
         <>
           <p className="text-sm">
-            Wyślij ten link do: <strong>{member.name}</strong> albo daj zeskanować kod. Otwarcie linku na nowym
-            telefonie przypisze go do tego gracza. Link działa raz, przez 48 godzin.
+            {self ? (
+              <>
+                Otwórz ten link na drugim urządzeniu albo zeskanuj nim kod.
+                Będziesz tam jako <strong>{member.name}</strong>, a ten telefon
+                zostaje podłączony. Link działa raz, przez 48 godzin.
+              </>
+            ) : (
+              <>
+                Wyślij ten link do: <strong>{member.name}</strong> albo daj
+                zeskanować kod. Otwarcie linku na nowym telefonie przypisze go
+                do tego gracza. Link działa raz, przez 48 godzin.
+              </>
+            )}
           </p>
-          <ShareLink url={claimUrl} title={`Dart – ${member.name}`} text={`${member.name}, otwórz ten link na swoim telefonie:`} />
+          <ShareLink
+            url={claimUrl}
+            title={`Dart – ${member.name}`}
+            text={
+              self
+                ? "Mój link do Dart na drugie urządzenie:"
+                : `${member.name}, otwórz ten link na swoim telefonie:`
+            }
+          />
         </>
       ) : (
         <Button variant="secondary" onClick={newDevice} disabled={busy}>
-          📱 {member.hasDevice ? "Nowy telefon" : "Połącz z telefonem"}
+          📱{" "}
+          {self
+            ? "Dodaj drugie urządzenie"
+            : member.hasDevice
+              ? "Nowy telefon"
+              : "Połącz z telefonem"}
         </Button>
       )}
 
-      {confirm ? (
-        <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3">
-          <p className="text-sm">
-            <strong>{member.name}</strong> zostanie organizatorem, a Ty zwykłym graczem. Na pewno?
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => setConfirm(false)} disabled={busy}>
-              Anuluj
+      {!self && (
+        <>
+          {confirm ? (
+            <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3">
+              <p className="text-sm">
+                <strong>{member.name}</strong> zostanie organizatorem, a Ty
+                zwykłym graczem. Na pewno?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setConfirm(false)}
+                  disabled={busy}
+                >
+                  Anuluj
+                </Button>
+                <Button onClick={makeOrganizer} disabled={busy}>
+                  Tak, przekaż
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              onClick={() => setConfirm(true)}
+              className="min-h-11 text-base"
+            >
+              👑 Zrób organizatorem
             </Button>
-            <Button onClick={makeOrganizer} disabled={busy}>
-              Tak, przekaż
+          )}
+          {confirmRemove ? (
+            <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3">
+              <p className="text-sm">
+                Usunąć <strong>{member.name}</strong> z ligi? Wyniki gracza
+                znikną z rankingu i historii, a telefon zostanie odłączony. Tego
+                nie da się cofnąć.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => setConfirmRemove(false)}
+                  disabled={busy}
+                >
+                  Anuluj
+                </Button>
+                <Button onClick={removeMember} disabled={busy}>
+                  Usuń
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmRemove(true)}
+              className="min-h-11 text-base text-red"
+            >
+              🗑 Usuń gracza
             </Button>
-          </div>
-        </div>
-      ) : (
-        <Button variant="ghost" onClick={() => setConfirm(true)} className="min-h-11 text-base">
-          👑 Zrób organizatorem
-        </Button>
-      )}
-      {confirmRemove ? (
-        <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3">
-          <p className="text-sm">
-            Usunąć <strong>{member.name}</strong> z ligi? Wyniki gracza znikną z rankingu i historii, a telefon zostanie
-            odłączony. Tego nie da się cofnąć.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={() => setConfirmRemove(false)} disabled={busy}>
-              Anuluj
-            </Button>
-            <Button onClick={removeMember} disabled={busy}>
-              Usuń
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button variant="ghost" onClick={() => setConfirmRemove(true)} className="min-h-11 text-base text-red">
-          🗑 Usuń gracza
-        </Button>
+          )}
+        </>
       )}
       <FormError message={error} />
     </div>
