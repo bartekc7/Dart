@@ -18,10 +18,7 @@ export function newId(): string {
  *   albo, przy grze solo, gdy jedyny gracz trafi w cel.
  */
 
-export function createGame(
-  players: Player[],
-  target: number = DEFAULT_TARGET,
-): GameState {
+export function createGame(players: Player[], target: number = DEFAULT_TARGET): GameState {
   if (players.length === 0) throw new Error("Dodaj co najmniej jednego gracza.");
   if (!Number.isInteger(target) || target <= 0)
     throw new Error("Cel musi być dodatnią liczbą całkowitą.");
@@ -76,9 +73,7 @@ export function currentPlayer(state: GameState): Player | null {
   if (isGameOver(state)) return null;
   const done = new Set(finishOrder(state));
   const last = state.turns.at(-1);
-  const start = last
-    ? state.players.findIndex((p) => p.id === last.playerId) + 1
-    : 0;
+  const start = last ? state.players.findIndex((p) => p.id === last.playerId) + 1 : 0;
   for (let k = 0; k < state.players.length; k++) {
     const p = state.players[(start + k) % state.players.length];
     if (!done.has(p.id)) return p;
@@ -231,4 +226,23 @@ export function playerStats(state: GameState, playerId: PlayerId): PlayerStats {
     best: counted.reduce((m, t) => Math.max(m, t.scored), 0),
     busts: turns.length - counted.length,
   };
+}
+
+/** Mnożnik pola: pojedyncze, podwójne, potrójne. */
+export type Mult = 1 | 2 | 3;
+
+/** Zapis rzutki o danej wartości, np. 16 → „16”, 40 → „D20”, 57 → „T19”, 50 → „D25”. */
+export function dartName(v: number): string {
+  if (v <= 20 || v === 25) return String(v);
+  if (v === 50) return "D25";
+  if (v <= 40 && v % 2 === 0) return `D${v / 2}`;
+  return `T${v / 3}`;
+}
+
+/** Wartość rzutki z mnożnikiem; null, gdy takiego pola nie ma (np. T25, D21). */
+export function dartValue(field: number, mult: Mult): number | null {
+  if (mult === 1) return isValidDart(field) ? field : null;
+  if (field >= 1 && field <= 20) return field * mult;
+  if (field === 25 && mult === 2) return 50;
+  return null;
 }

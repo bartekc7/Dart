@@ -8,6 +8,8 @@ import {
   finishOrder,
   isGameOver,
   isGameState,
+  dartName,
+  dartValue,
   isValidDart,
   lastTurnOf,
   placeOf,
@@ -118,7 +120,11 @@ describe("zakończ grę", () => {
 describe("rzutka po rzutce", () => {
   it("zapisuje rzutki, sprawdza sumę i wartości", () => {
     const g = applyTurn(createGame(players, 101), 85, [20, 60, 5]);
-    expect(g.turns[0]).toMatchObject({ scored: 85, darts: [20, 60, 5], bust: false });
+    expect(g.turns[0]).toMatchObject({
+      scored: 85,
+      darts: [20, 60, 5],
+      bust: false,
+    });
     expect(() => applyTurn(createGame(players, 101), 80, [20, 60, 5])).toThrow();
     expect(() => applyTurn(createGame(players, 101), 23, [23])).toThrow();
     expect(() => applyTurn(createGame(players, 101), 4, [1, 1, 1, 1])).toThrow();
@@ -131,7 +137,16 @@ describe("rzutka po rzutce", () => {
 
   it("isValidDart: pola, podwójne, potrójne i środek", () => {
     expect([0, 1, 20, 22, 25, 39, 40, 50, 57, 60].map(isValidDart)).toEqual([
-      true, true, true, true, true, true, true, true, true, true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
     ]);
     expect([23, 43, 41, 59, 61, -1, 2.5].map(isValidDart).some(Boolean)).toBe(false);
   });
@@ -162,8 +177,48 @@ describe("statystyki gracza", () => {
   it("średnia na serię liczy też przekroczenia jako serię za 0", () => {
     // Ania: 60, 50 (przekroczenie: 110 > 101), 41 → 101
     const g = play(createGame(players.slice(0, 2), 101), 60, 10, 50, 10, 41);
-    expect(playerStats(g, "a")).toEqual({ series: 3, points: 101, average: 101 / 3, best: 60, busts: 1 });
-    expect(playerStats(g, "b")).toMatchObject({ series: 2, points: 20, best: 10, busts: 0 });
+    expect(playerStats(g, "a")).toEqual({
+      series: 3,
+      points: 101,
+      average: 101 / 3,
+      best: 60,
+      busts: 1,
+    });
+    expect(playerStats(g, "b")).toMatchObject({
+      series: 2,
+      points: 20,
+      best: 10,
+      busts: 0,
+    });
     expect(playerStats(createGame(players, 101), "c").average).toBe(0);
+  });
+});
+
+describe("Double i Triple", () => {
+  it("dartValue liczy punkty pola z mnożnikiem", () => {
+    expect(dartValue(20, 1)).toBe(20);
+    expect(dartValue(20, 2)).toBe(40);
+    expect(dartValue(20, 3)).toBe(60);
+    expect(dartValue(25, 2)).toBe(50);
+    expect([dartValue(25, 3), dartValue(21, 2), dartValue(0, 3), dartValue(23, 1)]).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect(dartValue(0, 1)).toBe(0);
+  });
+
+  it("dartName podpowiada zapis rzutu kończącego", () => {
+    expect([16, 25, 50, 40, 22, 57, 60, 39].map(dartName)).toEqual([
+      "16",
+      "25",
+      "D25",
+      "D20",
+      "D11",
+      "T19",
+      "T20",
+      "T13",
+    ]);
   });
 });
