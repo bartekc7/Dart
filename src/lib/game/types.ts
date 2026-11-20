@@ -27,6 +27,11 @@ export interface Turn {
    * Brak = wpisano tylko sumę serii.
    */
   darts?: number[];
+  /**
+   * Pola trafione kolejnymi rzutkami, np. ["T20", "5", "D25"] („0” = pudło).
+   * Zapisywane od wprowadzenia tarczy trafień; starsze serie ich nie mają.
+   */
+  fields?: string[];
 }
 
 export interface GameState {
