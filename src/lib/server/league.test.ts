@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ensureSchema } from "./db";
+import { restoreRemovedResults } from "./repair";
 import {
   addMember,
   claimDevice,
@@ -263,6 +264,20 @@ describe.skipIf(!url)("liga w bazie", () => {
     await removeMember(db, me, ids.Gracz1);
     expect(await whoAmI(db, t1)).toBeNull(); // telefon odłączony
     expect((await listMembers(db, me.league.id)).map((m) => m.name).sort()).toEqual(["Gracz2", "Org"]);
+    // Gracz z grami jest tylko dezaktywowany: ranking, historia i karta zostają.
+    const ranking = await leagueRanking(db, me.league.id);
+    expect(ranking.games).toBe(1);
+    expect(ranking.rows.map((r) => r.name).sort()).toEqual(["Gracz1", "Gracz2", "Org"]);
+    expect((await leagueGames(db, me.league.id))[0].results).toHaveLength(3);
+    expect((await memberStats(db, me.league.id, ids.Gracz1)).games).toBe(1);
+    await expect(createClaimToken(db, me, ids.Gracz1)).rejects.toThrow(/Nie ma takiego gracza/);
+    // Gracz bez gier znika całkiem.
+    const bez = await addMember(db, me, "Bez gier");
+    await removeMember(db, me, bez.id);
+    expect((await db.query("select 1 from members where id = $1", [bez.id])).rowCount).toBe(0);
+    // Ponowne dodanie tej samej nazwy przywraca gracza razem z wynikami.
+    expect((await addMember(db, me, "gracz1")).id).toBe(ids.Gracz1);
+    await removeMember(db, me, ids.Gracz1);
 
     await expect(clearLeague(db, me, "games", "zła nazwa")).rejects.toThrow(/nazwę ligi/);
     await clearLeague(db, me, "games", " czyszczenie ");
@@ -270,5 +285,35 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(await listMembers(db, me.league.id)).toHaveLength(2);
     await clearLeague(db, me, "all", "Czyszczenie");
     expect((await listMembers(db, me.league.id)).map((m) => m.name)).toEqual(["Org"]);
+  });
+
+  it("naprawa: odtwarza wyniki gracza skasowanego starym „Usuń gracza”", async () => {
+    const org = newDeviceToken();
+    await createLeague(db, org, "Naprawa", "Szef");
+    const me = await requireMe(db, org);
+    const ola = await addMember(db, me, "Ola");
+    const kuba = await addMember(db, me, "Kuba");
+    const players = [me.member.id, ola.id, kuba.id];
+    // Ola kończy pierwsza, Szef drugi, Kuba trzeci.
+    const turns = [10, 101, 20, 91].map((x) => ({ scored: x }));
+    await publishLiveGame(db, me, { id: "n1", target: 101, players, turns, rev: 1 });
+    await saveGame(db, me, { id: "n1", target: 101, players, turns });
+    // n2: Kuba nie zdążył rzucić, więc jest tylko w podglądzie na żywo.
+    const n2 = { id: "n2", target: 101, players: [me.member.id, kuba.id], turns: [{ scored: 101 }] };
+    await publishLiveGame(db, me, { ...n2, rev: 1 });
+    await saveGame(db, me, n2);
+    // Stare zachowanie: twarde usunięcie kasuje wyniki.
+    await db.query("delete from members where id = any($1)", [[ola.id, kuba.id]]);
+    expect((await leagueRanking(db, me.league.id)).games).toBe(0); // tak zniknął ranking
+
+    await restoreRemovedResults(db);
+    await restoreRemovedResults(db); // drugi raz nic nie zmienia
+    const games = await leagueGames(db, me.league.id);
+    const n1 = games.find((g) => g.id === "n1")!;
+    expect(n1.results.map((r) => [r.name, r.place])).toEqual([["Ola", 1], ["Szef", 2], ["Kuba", 3]]);
+    expect(games.find((g) => g.id === "n2")!.results).toHaveLength(2);
+    expect((await leagueRanking(db, me.league.id)).games).toBe(2);
+    // Przywróceni są nieaktywni.
+    expect((await listMembers(db, me.league.id)).map((m) => m.name)).toEqual(["Szef"]);
   });
 });

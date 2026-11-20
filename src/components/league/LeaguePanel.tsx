@@ -264,9 +264,9 @@ function MemberActions({ member, self }: { member: Member; self: boolean }) {
           {confirmRemove ? (
             <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3">
               <p className="text-sm">
-                Usunąć <strong>{member.name}</strong> z ligi? Wyniki gracza
-                znikną z rankingu i historii, a telefon zostanie odłączony. Tego
-                nie da się cofnąć.
+                Usunąć <strong>{member.name}</strong> z ligi? Zniknie z listy
+                graczy, a telefon zostanie odłączony. Rozegrane gry zostają w
+                rankingu i historii.
               </p>
               <div className="grid grid-cols-2 gap-2">
                 <Button

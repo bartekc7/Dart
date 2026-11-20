@@ -1,4 +1,5 @@
 import { Pool, type PoolClient } from "pg";
+import { restoreRemovedResults } from "./repair";
 
 /**
  * Połączenie z Postgresem (Neon na produkcji, lokalny Postgres w testach).
@@ -86,10 +87,13 @@ create table if not exists live_games (
 create index if not exists live_games_league on live_games (league_id, updated_at desc);
 alter table leagues add column if not exists entry_mode text not null default 'sum';
 alter table leagues add column if not exists recovery_hash text;
+-- Usunięty gracz, który ma rozegrane gry, zostaje nieaktywny: znika z list, a jego wyniki zostają.
+alter table members add column if not exists active boolean not null default true;
 `;
 
 export async function ensureSchema(db: Db) {
   await db.query(SCHEMA);
+  await restoreRemovedResults(db);
 }
 
 export async function inTransaction<T>(db: Pool, fn: (c: PoolClient) => Promise<T>): Promise<T> {
