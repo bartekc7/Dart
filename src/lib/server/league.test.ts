@@ -287,6 +287,23 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect((await listMembers(db, me.league.id)).map((m) => m.name)).toEqual(["Org"]);
   });
 
+  it("karta gracza liczy trafienia w pola tarczy", async () => {
+    const org = newDeviceToken();
+    await createLeague(db, org, "Tarcza", "Ola");
+    const me = await requireMe(db, org);
+    const kuba = await addMember(db, me, "Kuba");
+    const players = [me.member.id, kuba.id];
+    const turns = [
+      { scored: 81, darts: [60, 16, 5], fields: ["T20", "D8", "5"] },
+      { scored: 101 },
+    ];
+    await saveGame(db, me, { id: "tarcza1", target: 101, players, turns });
+    const ola = await memberStats(db, me.league.id, me.member.id);
+    expect(ola.hits).toEqual({ T20: 1, D8: 1, "5": 1 });
+    expect(ola.hitGames).toBe(1);
+    expect((await memberStats(db, me.league.id, kuba.id)).hits).toEqual({});
+  });
+
   it("naprawa: odtwarza wyniki gracza skasowanego starym „Usuń gracza”", async () => {
     const org = newDeviceToken();
     await createLeague(db, org, "Naprawa", "Szef");

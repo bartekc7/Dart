@@ -363,7 +363,8 @@ async function replayGame(db: Db, me: Me, input: GameInput): Promise<GameState> 
   try {
     for (const t of turns) {
       const darts = Array.isArray(t?.darts) ? t.darts.map(Number) : undefined;
-      state = applyTurn(state, Number(t?.scored), darts);
+      const fields = Array.isArray(t?.fields) ? t.fields.filter((f) => typeof f === "string") : undefined;
+      state = applyTurn(state, Number(t?.scored), darts, fields);
     }
     if (input.ended === true) state = endGame(state);
   } catch {
@@ -577,6 +578,10 @@ export interface MemberStats {
   busts: number;
   /** Ostatnie gry, od najnowszej. */
   recent: MyGame[];
+  /** Trafienia w pola tarczy (np. { T20: 4, "5": 9 }) z rzutek wpisywanych osobno; „0” = pudła. */
+  hits: Record<string, number>;
+  /** Z ilu gier pochodzą trafienia. */
+  hitGames: number;
 }
 
 /** Karta gracza: statystyki ze wszystkich gier ligowych gracza. */
@@ -596,9 +601,16 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
   let points = 0;
   let best = 0;
   let busts = 0;
+  const hits: Record<string, number> = {};
+  let hitGames = 0;
   for (const g of rows) {
+    let counted = false;
     for (const t of (g.turns as Turn[]) ?? []) {
       if (t.playerId !== memberId) continue;
+      for (const f of t.fields ?? []) {
+        hits[f] = (hits[f] ?? 0) + 1;
+        counted = true;
+      }
       series++;
       if (t.bust) busts++;
       else {
@@ -606,6 +618,7 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
         best = Math.max(best, t.scored);
       }
     }
+    if (counted) hitGames++;
   }
   return {
     id: member.id,
@@ -618,6 +631,8 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
     avgPerSeries: series ? points / series : 0,
     bestSeries: best,
     busts,
+    hits,
+    hitGames,
     recent: rows.slice(0, 10).map((r) => ({
       id: r.id,
       finishedAt: new Date(r.finished_at).toISOString(),

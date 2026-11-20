@@ -10,6 +10,7 @@ import {
   isGameState,
   dartName,
   dartValue,
+  fieldValue,
   isValidDart,
   lastTurnOf,
   placeOf,
@@ -220,5 +221,19 @@ describe("Double i Triple", () => {
       "T20",
       "T13",
     ]);
+  });
+});
+
+describe("pola rzutek", () => {
+  it("fieldValue czyta zapis pola", () => {
+    expect(["T20", "D8", "5", "25", "D25", "0"].map(fieldValue)).toEqual([60, 16, 5, 25, 50, 0]);
+    expect(["T25", "D21", "21", "X3", "", "50"].map(fieldValue)).toEqual([null, null, null, null, null, null]);
+  });
+
+  it("applyTurn zapisuje pola tylko, gdy zgadzają się z rzutkami", () => {
+    const g = createGame([{ id: "a", name: "A" }, { id: "b", name: "B" }], 101);
+    expect(applyTurn(g, 81, [60, 16, 5], ["T20", "D8", "5"]).turns[0].fields).toEqual(["T20", "D8", "5"]);
+    expect(applyTurn(g, 81, [60, 16, 5], ["T20", "8", "5"]).turns[0].fields).toBeUndefined();
+    expect(applyTurn(g, 81, [60, 16, 5]).turns[0].fields).toBeUndefined();
   });
 });

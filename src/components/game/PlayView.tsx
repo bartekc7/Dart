@@ -54,8 +54,8 @@ export function PlayView({
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
 
-  function submit(score: number, darts?: number[]) {
-    const next = applyTurn(game, score, darts);
+  function submit(score: number, darts?: number[], fields?: string[]) {
+    const next = applyTurn(game, score, darts, fields);
     const turn = next.turns.at(-1)!;
     const place = placeOf(next, player.id);
     const shown = darts && darts.length > 1 ? `${formatDarts(darts)} = ${score}` : String(score);

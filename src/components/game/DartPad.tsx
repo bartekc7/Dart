@@ -15,7 +15,7 @@ export function DartPad({
   onSubmit,
 }: {
   remaining: number;
-  onSubmit: (score: number, darts: number[]) => void;
+  onSubmit: (score: number, darts: number[], fields: string[]) => void;
 }) {
   const [darts, setDarts] = useState<number[]>([]);
   const [labels, setLabels] = useState<string[]>([]);
@@ -34,7 +34,8 @@ export function DartPad({
   const last =
     darts.length === DARTS_PER_TURN - 1 || (n !== null && !invalid && total + n >= remaining);
 
-  function commit(v: number, text = String(v)) {
+  /** Zapis pola rzutki (T20, D8, 5, D25 = bull), który trafia też do statystyk tarczy. */
+  function commit(v: number, field = dartName(v)) {
     const next = [...darts, v];
     const sum = total + v;
     setInput("");
@@ -42,10 +43,10 @@ export function DartPad({
     if (next.length === DARTS_PER_TURN || sum >= remaining) {
       setDarts([]);
       setLabels([]);
-      onSubmit(sum, next);
+      onSubmit(sum, next, [...labels, field]);
     } else {
       setDarts(next);
-      setLabels([...labels, text]);
+      setLabels([...labels, field]);
     }
   }
 
@@ -60,7 +61,7 @@ export function DartPad({
       }
       return;
     }
-    if (k === "OK") return n !== null && !invalid && commit(n, mult === 1 ? String(n) : label);
+    if (k === "OK") return n !== null && !invalid && commit(n, mult === 1 ? dartName(n) : input === "25" ? "D25" : label);
     if (input.length >= 2) return;
     setInput(input === "0" ? k : input + k);
   }

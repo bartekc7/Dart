@@ -111,7 +111,12 @@ export function formatDarts(darts: number[]): string {
  * `darts` (opcjonalnie) to punkty z kolejnych rzutek; ich suma musi
  * równać się `score`. Przekroczenie liczymy zawsze po sumie serii.
  */
-export function applyTurn(state: GameState, score: number, darts?: number[]): GameState {
+export function applyTurn(
+  state: GameState,
+  score: number,
+  darts?: number[],
+  fields?: string[],
+): GameState {
   const player = currentPlayer(state);
   if (!player) throw new Error("Gra jest już zakończona.");
   if (!isValidTurnScore(score))
@@ -124,6 +129,10 @@ export function applyTurn(state: GameState, score: number, darts?: number[]): Ga
     scored: score,
     bust: score > remainingFor(state, player.id),
     ...(darts ? { darts: [...darts] } : {}),
+    // Pola zapisujemy tylko, gdy zgadzają się z punktami rzutek (inaczej je pomijamy).
+    ...(darts && fields && fields.length === darts.length && fields.every((f, i) => fieldValue(f) === darts[i])
+      ? { fields: [...fields] }
+      : {}),
   };
   return { ...state, turns: [...state.turns, turn] };
 }
@@ -245,4 +254,14 @@ export function dartValue(field: number, mult: Mult): number | null {
   if (field >= 1 && field <= 20) return field * mult;
   if (field === 25 && mult === 2) return 50;
   return null;
+}
+
+/** Punkty pola zapisanego jak „T20”, „D8”, „20”, „25”, „D25”, „0”; null dla błędnego zapisu. */
+export function fieldValue(key: string): number | null {
+  const m = /^([DT]?)(\d{1,2})$/.exec(key);
+  if (!m) return null;
+  const field = Number(m[2]);
+  const mult: Mult = m[1] === "T" ? 3 : m[1] === "D" ? 2 : 1;
+  if (mult === 1 && field > 20 && field !== 25) return null;
+  return dartValue(field, mult);
 }
