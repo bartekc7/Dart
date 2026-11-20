@@ -81,8 +81,14 @@ async function insertMember(db: Db, leagueId: string, name: string, organizer = 
       [id, leagueId, name, organizer],
     );
   } catch (e) {
-    if (isUniqueViolation(e)) throw new UserError(`W lidze jest już gracz „${name}”.`, 409);
-    throw e;
+    if (!isUniqueViolation(e)) throw e;
+    // Ta sama nazwa co usunięty gracz z grami: przywracamy go razem z jego wynikami.
+    const { rows } = await db.query(
+      "update members set active = true where league_id = $1 and lower(name) = lower($2) and not active returning id",
+      [leagueId, name],
+    );
+    if (rows[0]) return rows[0].id as string;
+    throw new UserError(`W lidze jest już gracz „${name}”.`, 409);
   }
   return id;
 }
@@ -122,7 +128,7 @@ export async function whoAmI(db: Db, token: string | undefined): Promise<Me | nu
   const { rows } = await db.query(
     `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, l.id as league_id, l.name as league_name, l.join_code, l.entry_mode, l.recovery_hash is not null as has_recovery
        from devices d join members m on m.id = d.member_id join leagues l on l.id = m.league_id
-      where d.token_hash = $1`,
+      where d.token_hash = $1 and m.active`,
     [hashToken(token)],
   );
   const r = rows[0];
@@ -144,11 +150,12 @@ function requireOrganizer(me: Me) {
   if (!me.member.isOrganizer) throw new UserError("To może zrobić tylko organizator ligi.", 403);
 }
 
-export async function listMembers(db: Db, leagueId: string): Promise<Member[]> {
+/** Aktywni gracze ligi; `withInactive` dokłada też usuniętych, którzy mają gry (np. do karty gracza). */
+export async function listMembers(db: Db, leagueId: string, withInactive = false): Promise<Member[]> {
   const { rows } = await db.query(
     `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, exists (select 1 from devices d where d.member_id = m.id) as has_device
-       from members m where m.league_id = $1 order by m.is_organizer desc, lower(m.name)`,
-    [leagueId],
+       from members m where m.league_id = $1 and (m.active or $2) order by m.is_organizer desc, lower(m.name)`,
+    [leagueId, withInactive],
   );
   return rows.map((r) => ({
     id: r.id,
@@ -287,7 +294,15 @@ export async function removeMember(db: Db, me: Me, memberId: string) {
   requireOrganizer(me);
   if (memberId === me.member.id) throw new UserError("Nie możesz usunąć siebie.");
   await requireMemberOfLeague(db, me.league.id, memberId);
-  await db.query("delete from members where id = $1 and league_id = $2", [memberId, me.league.id]);
+  const { rowCount } = await db.query("select 1 from game_results where member_id = $1 limit 1", [memberId]);
+  if (rowCount) {
+    // Gracz z grami: tylko dezaktywacja, żeby ranking i historia zostały bez zmian.
+    await db.query("update members set active = false, is_organizer = false where id = $1", [memberId]);
+    await db.query("delete from devices where member_id = $1", [memberId]);
+    await db.query("delete from claim_tokens where member_id = $1", [memberId]);
+  } else {
+    await db.query("delete from members where id = $1 and league_id = $2", [memberId, me.league.id]);
+  }
 }
 
 export type ClearMode = "games" | "all";
@@ -304,12 +319,14 @@ export async function clearLeague(db: Db, me: Me, mode: unknown, confirmName: un
     throw new UserError("Wpisz dokładnie nazwę ligi, żeby potwierdzić.");
   await db.query("delete from games where league_id = $1", [me.league.id]);
   await db.query("delete from live_games where league_id = $1", [me.league.id]);
+  // Usunięci gracze byli trzymani tylko dla swoich gier, a tych już nie ma.
+  await db.query("delete from members where league_id = $1 and not active", [me.league.id]);
   if (mode === "all")
     await db.query("delete from members where league_id = $1 and id <> $2", [me.league.id, me.member.id]);
 }
 
 async function requireMemberOfLeague(db: Db, leagueId: string, memberId: string) {
-  const { rowCount } = await db.query("select 1 from members where id = $1 and league_id = $2", [
+  const { rowCount } = await db.query("select 1 from members where id = $1 and league_id = $2 and active", [
     memberId,
     leagueId,
   ]);
@@ -564,7 +581,7 @@ export interface MemberStats {
 
 /** Karta gracza: statystyki ze wszystkich gier ligowych gracza. */
 export async function memberStats(db: Db, leagueId: string, memberId: string): Promise<MemberStats> {
-  const member = (await listMembers(db, leagueId)).find((m) => m.id === memberId);
+  const member = (await listMembers(db, leagueId, true)).find((m) => m.id === memberId);
   if (!member) throw new UserError("Nie ma takiego gracza w lidze.", 404);
   const { rows } = await db.query(
     `select g.id, g.finished_at, g.target, g.turns, r.place,
