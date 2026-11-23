@@ -8,20 +8,21 @@ import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { currentPlayer, formatDarts, placeOf, remainingFor, standings } from "@/lib/game/engine";
+import { checkout, currentPlayer, formatCheckout, formatDarts, placeOf, remainingFor, standings } from "@/lib/game/engine";
 import { useSeenFinished } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
-import { usePoll } from "@/lib/live/usePoll";
+import { FAST_POLL_MS, IDLE_POLL_MS, usePoll } from "@/lib/live/usePoll";
 import type { LiveGame } from "@/lib/server/league";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
-const POLL_MS = 2500;
+/** Trwająca gra: szybko; zakończona już się nie zmieni. */
+const pollEvery = (data: { game: LiveGame } | null) => (data?.game.finished ? IDLE_POLL_MS : FAST_POLL_MS);
 
 /** Podgląd gry na żywo dla graczy, którzy nie wpisują punktów. */
 export function LiveView({ id }: { id: string }) {
   const { state } = useLeague();
   const me = state.status === "ready" ? state.data.me : null;
-  const poll = usePoll<{ game: LiveGame }>(me ? `/api/live/${encodeURIComponent(id)}` : null, POLL_MS);
+  const poll = usePoll<{ game: LiveGame }>(me ? `/api/live/${encodeURIComponent(id)}` : null, pollEvery);
 
   if (state.status === "loading") return <Loading />;
   if (state.status === "error") return <LoadError {...state} />;
@@ -69,6 +70,7 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
   const mine = player?.id === myId;
   const last = lastThrow(state);
   const colorOf = usePlayerColors();
+  const hint = player ? checkout(remainingFor(state, player.id)) : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -89,6 +91,12 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
         <p className="text-7xl leading-tight font-bold tabular-nums">
           {player ? remainingFor(state, player.id) : "–"}
         </p>
+        {hint && (
+          <p className="mx-auto mb-1 w-fit rounded-full bg-white/20 px-3 py-0.5 font-mono text-lg leading-snug font-bold">
+            <span className="font-sans text-sm font-semibold opacity-90">🎯 kończ: </span>
+            {formatCheckout(hint)}
+          </p>
+        )}
         <p className="text-sm uppercase tracking-wider opacity-90">
           zostało · gra do {state.settings.target}
         </p>
