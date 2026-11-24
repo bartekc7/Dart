@@ -83,9 +83,20 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
           })}
         </tbody>
       </table>
-      <Link href="/historia" className="mt-1 block py-2 text-center text-sm font-medium text-muted">
-        Historia gier ›
-      </Link>
+      <div className="mt-1 grid grid-cols-2 gap-2">
+        <Link
+          href="/statystyki"
+          className="rounded-xl bg-surface py-2.5 text-center text-sm font-semibold ring-1 ring-line active:opacity-70"
+        >
+          📊 Statystyki ligi
+        </Link>
+        <Link
+          href="/historia"
+          className="rounded-xl bg-surface py-2.5 text-center text-sm font-semibold ring-1 ring-line active:opacity-70"
+        >
+          🕑 Historia gier
+        </Link>
+      </div>
     </section>
   );
 }

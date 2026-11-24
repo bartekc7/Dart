@@ -23,6 +23,7 @@ import {
   saveGame,
   createRecoveryCode,
   memberStats,
+  leagueStats,
   leagueGames,
   removeMember,
   clearLeague,
@@ -302,6 +303,14 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(ola.hits).toEqual({ T20: 1, D8: 1, "5": 1 });
     expect(ola.hitGames).toBe(1);
     expect((await memberStats(db, me.league.id, kuba.id)).hits).toEqual({});
+
+    // Statystyki ligi: ta sama gra, plus czas gry, gdy baza ma kolumny started_at/ended_at.
+    const liga = await leagueStats(db, me.league.id);
+    expect(liga).toMatchObject({ games: 1, series: 2, hits: { T20: 1, D8: 1, "5": 1 }, durations: null });
+    expect(liga.records.fastestWin).toMatchObject({ memberId: kuba.id, value: 1 });
+    await db.query("alter table games add column if not exists started_at timestamptz, add column if not exists ended_at timestamptz");
+    await db.query("update games set started_at = now() - interval '7 minutes', ended_at = now() where id = 'tarcza1'");
+    expect((await leagueStats(db, me.league.id)).durations).toMatchObject({ games: 1, avgMs: 7 * 60_000 });
   });
 
   it("naprawa: odtwarza wyniki gracza skasowanego starym „Usuń gracza”", async () => {
