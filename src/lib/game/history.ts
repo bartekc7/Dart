@@ -3,6 +3,8 @@ export interface GameRecord {
   id: string;
   finishedAt: string;
   target: number;
+  /** Czas gry od pierwszej rzutki do ostatniej serii (brak dla starszych gier). */
+  durationMs?: number;
   /** Gracze z miejscami, od pierwszego. */
   results: { id?: string; name: string; place: number }[];
 }

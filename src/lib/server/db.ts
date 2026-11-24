@@ -89,6 +89,9 @@ alter table leagues add column if not exists entry_mode text not null default 's
 alter table leagues add column if not exists recovery_hash text;
 -- Usunięty gracz, który ma rozegrane gry, zostaje nieaktywny: znika z list, a jego wyniki zostają.
 alter table members add column if not exists active boolean not null default true;
+-- Czas gry: pierwsza rzutka i ostatnia seria (starsze gry: null).
+alter table games add column if not exists started_at timestamptz;
+alter table games add column if not exists ended_at timestamptz;
 `;
 
 export async function ensureSchema(db: Db) {

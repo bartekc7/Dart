@@ -8,7 +8,9 @@ import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
 import { Button, ButtonLink } from "@/components/ui/Button";
-import { checkout, currentPlayer, formatCheckout, formatDarts, placeOf, remainingFor, standings } from "@/lib/game/engine";
+import { checkout, currentPlayer, finishedAt, finishOrder, formatCheckout, formatDarts, gameDuration, formatDuration, placeOf, remainingFor, standings } from "@/lib/game/engine";
+import { SinceFinish } from "@/components/game/SinceFinish";
+import { useNow } from "@/lib/useNow";
 import { useSeenFinished } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
 import { FAST_POLL_MS, IDLE_POLL_MS, usePoll } from "@/lib/live/usePoll";
@@ -71,6 +73,7 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
   const last = lastThrow(state);
   const colorOf = usePlayerColors();
   const hint = player ? checkout(remainingFor(state, player.id)) : null;
+  const now = useNow(finishOrder(state).length > 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -123,9 +126,12 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
               style={active ? activeRowStyle(colorOf(p.id)) : undefined}
             >
               <PlayerDot color={colorOf(p.id)} big={active} />
-              <span className={`flex-1 truncate text-lg font-medium ${place ? "text-muted" : ""}`}>
-                {p.name}
-                {p.id === myId && <span className="font-normal text-muted"> (Ty)</span>}
+              <span className="flex min-w-0 flex-1 flex-col py-1 leading-tight">
+                <span className={`truncate text-lg font-medium ${place ? "text-muted" : ""}`}>
+                  {p.name}
+                  {p.id === myId && <span className="font-normal text-muted"> (Ty)</span>}
+                </span>
+                {place && <SinceFinish at={finishedAt(state, p.id)} now={now} />}
               </span>
               {place ? (
                 <span className="text-lg font-bold" aria-label={`${place}. miejsce`}>
@@ -163,7 +169,10 @@ function Finished({ game, myId }: { game: LiveGame; myId: string }) {
         <h2 className="mt-3 text-3xl font-bold">
           {winner?.id === myId ? "Wygrywasz!" : `${winner?.name} wygrywa!`}
         </h2>
-        <p className="mt-1 text-muted">Gra do {game.state.settings.target} · klasyfikacja końcowa</p>
+        <p className="mt-1 text-muted">
+          Gra do {game.state.settings.target}
+          {gameDuration(game.state) !== null && ` · ⏱ ${formatDuration(gameDuration(game.state)!)}`} · klasyfikacja końcowa
+        </p>
       </section>
       <div className="mt-6 flex flex-col gap-4">
         <FinalStandings game={game.state} myId={myId} />

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLeague } from "@/components/league/LeagueProvider";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { api } from "@/lib/api";
-import { rematch, standings, undoLastTurn } from "@/lib/game/engine";
+import { formatDuration, gameDuration, rematch, standings, undoLastTurn } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
 import { FinalStandings, GameStats } from "./FinalStandings";
 
@@ -33,6 +33,7 @@ export function ResultsView({
           players: game.players.map((p) => p.id),
           turns: game.turns,
           ended: game.endedEarly === true,
+          startedAt: game.startedAt,
         },
       });
       setSave({ status: "saved" });
@@ -60,12 +61,16 @@ export function ResultsView({
 
   const table = standings(game);
   const winner = table[0];
+  const duration = gameDuration(game);
 
   return (
     <main className="flex flex-1 flex-col gap-4">
       <section className="flex flex-col items-center pt-2 text-center">
         <h1 className="text-3xl font-bold">🏆 {winner.player.name} wygrywa!</h1>
-        <p className="mt-1 text-muted">Gra do {game.settings.target}</p>
+        <p className="mt-1 text-muted">
+          Gra do {game.settings.target}
+          {duration !== null && <> · ⏱ czas gry {formatDuration(duration)}</>}
+        </p>
         <SaveStatus save={save} onRetry={saveGame} solo={game.players.length === 1} />
       </section>
 

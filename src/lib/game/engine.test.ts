@@ -20,6 +20,11 @@ import {
   standings,
   undoLastTurn,
   checkout,
+  finishedAt,
+  finishTime,
+  formatDuration,
+  gameDuration,
+  gameStart,
 } from "./engine";
 import type { GameState } from "./types";
 
@@ -271,5 +276,51 @@ describe("podpowiedź zakończenia", () => {
     expect(checkout(61, 1)).toBeNull();
     expect(checkout(179)).toBeNull(); // 179 nie da się trzema rzutkami
     expect(checkout(5, 0)).toBeNull();
+  });
+});
+
+describe("czas gry", () => {
+  const two = [players[0], players[1]];
+
+  it("liczy od pierwszej rzutki do ostatniej serii i zapisuje czas zakończenia gracza", () => {
+    let g = createGame(players, 101);
+    g = applyTurn(g, 60, undefined, undefined, { at: 10_000, startedAt: 4_000 });
+    expect(g.startedAt).toBe(4_000);
+    g = applyTurn(g, 50, undefined, undefined, { at: 20_000 });
+    g = applyTurn(g, 10, undefined, undefined, { at: 25_000 });
+    g = applyTurn(g, 41, undefined, undefined, { at: 30_000 }); // Ania kończy
+    expect(finishedAt(g, "a")).toBe(30_000);
+    expect(finishTime(g, "a")).toBe(26_000);
+    expect(finishedAt(g, "b")).toBeNull();
+    g = applyTurn(g, 51, undefined, undefined, { at: 95_000 }); // Bartek kończy, koniec gry
+    expect(isGameOver(g)).toBe(true);
+    expect(gameDuration(g)).toBe(91_000);
+    expect(g.startedAt).toBe(4_000); // późniejsze serie nie zmieniają początku
+  });
+
+  it("bez pierwszej rzutki początkiem jest pierwsza seria; cofnięcie wszystkiego czyści początek", () => {
+    let g = applyTurn(createGame(two, 101), 20, undefined, undefined, { at: 7_000 });
+    expect(gameStart(g)).toBe(7_000);
+    g = undoLastTurn(g);
+    expect(g.startedAt).toBeUndefined();
+    // Pierwsza rzutka „po” zapisie serii to błąd zegara – bierzemy czas serii.
+    g = applyTurn(g, 20, undefined, undefined, { at: 7_000, startedAt: 9_000 });
+    expect(g.startedAt).toBe(7_000);
+  });
+
+  it("stare gry bez czasów nie mają czasu gry", () => {
+    let g = applyTurn(createGame(players, 101), 101, undefined, undefined, { at: null });
+    g = applyTurn(g, 20, undefined, undefined, { at: null });
+    expect(g.turns.every((t) => t.at === undefined)).toBe(true);
+    expect(gameDuration(g)).toBeNull();
+    expect(finishTime(g, "a")).toBeNull();
+  });
+
+  it("formatuje czas jak zegar", () => {
+    expect(formatDuration(0)).toBe("0:00");
+    expect(formatDuration(65_400)).toBe("1:05");
+    expect(formatDuration(754_000)).toBe("12:34");
+    expect(formatDuration(3_909_000)).toBe("1:05:09");
+    expect(formatDuration(-5)).toBe("0:00");
   });
 });

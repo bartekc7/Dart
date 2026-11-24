@@ -151,6 +151,30 @@ describe.skipIf(!url)("liga w bazie", () => {
       ["Bartek", 3],
     ]);
 
+    // Czas gry: od pierwszej rzutki do ostatniej serii; stara gra bez czasów ma null.
+    const t0 = Date.now() - 600_000;
+    await saveGame(db, me, {
+      ...game,
+      id: "g9",
+      startedAt: t0,
+      turns: [101, 50, 101].map((s, i) => ({ scored: s, at: t0 + 60_000 * (i + 1) })),
+    });
+    const timed = await db.query(
+      "select id, started_at, ended_at, turns from games where id in ('g1', 'g9') order by id",
+    );
+    expect(timed.rows[0].started_at).toBeNull();
+    expect(timed.rows[0].turns[0].at).toBeUndefined();
+    expect(new Date(timed.rows[1].started_at).getTime()).toBe(t0);
+    expect(new Date(timed.rows[1].ended_at).getTime()).toBe(t0 + 180_000);
+    expect(timed.rows[1].turns.map((t: { at: number }) => t.at - t0)).toEqual([60_000, 120_000, 180_000]);
+    const listed = await leagueGames(db, me.league.id);
+    expect(listed.find((g) => g.id === "g9")?.durationMs).toBe(180_000);
+    expect(listed.find((g) => g.id === "g1")?.durationMs).toBeUndefined();
+    // Czas z przyszłości (zły zegar) nie trafia do bazy.
+    await saveGame(db, me, { ...game, id: "g9", turns: [101, 50, 101].map((s) => ({ scored: s, at: Date.now() + 86_400_000 })) });
+    expect((await db.query("select started_at from games where id = 'g9'")).rows[0].started_at).toBeNull();
+    await deleteGame(db, me, "g9");
+
     await expect(saveGame(db, me, { ...game, id: "g2", turns: [{ scored: 101 }] })).rejects.toThrow(
       /nie jest zakończona/,
     );

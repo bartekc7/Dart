@@ -2,7 +2,7 @@
 
 import { usePlayerColors } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
-import { playerStats, standings } from "@/lib/game/engine";
+import { finishTime, formatDuration, playerStats, standings } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -41,6 +41,7 @@ export function FinalStandings({ game, myId }: { game: GameState; myId?: string 
               <span className="block text-sm text-muted">
                 {stats.series} {seriesWord(stats.series)}
                 {!s.finished && ` · zostało ${s.remaining}`}
+                {s.finished && finishTime(game, s.player.id) !== null && ` · ⏱ ${formatDuration(finishTime(game, s.player.id)!)}`}
               </span>
             </span>
             <span className="text-right">

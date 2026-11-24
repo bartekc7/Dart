@@ -32,6 +32,12 @@ export interface Turn {
    * Zapisywane od wprowadzenia tarczy trafień; starsze serie ich nie mają.
    */
   fields?: string[];
+  /**
+   * Kiedy seria została zapisana (ms od 1970, zegar telefonu liczącego).
+   * Ostatnia seria gracza, który skończył, to jego czas zakończenia.
+   * Starsze gry tego nie mają.
+   */
+  at?: number;
 }
 
 export interface GameState {
@@ -50,6 +56,8 @@ export interface GameState {
    * Pozostali dostają miejsca według tego, ile im zostało.
    */
   endedEarly?: boolean;
+  /** Pierwsza rzutka gry (ms od 1970). Czas gry liczymy od niej do ostatniej serii. */
+  startedAt?: number;
 }
 
 export interface Placement {

@@ -11,6 +11,8 @@ import {
   DARTS_PER_TURN,
   dartName,
   endGame,
+  finishedAt,
+  finishOrder,
   formatCheckout,
   formatDarts,
   isValidDart,
@@ -30,6 +32,8 @@ import { say } from "@/lib/speech";
 import { removeLive } from "@/lib/live/publish";
 import { DartPad, NO_DARTS, type PendingDarts } from "./DartPad";
 import { Keypad } from "./Keypad";
+import { SinceFinish } from "./SinceFinish";
+import { useNow } from "@/lib/useNow";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 /** Do komunikatu głosowego: „kończy na drugim miejscu”. */
@@ -58,6 +62,10 @@ export function PlayView({
   const [pending, setPending] = useState<PendingDarts>(NO_DARTS);
   // Zmiana klucza czyści pole wpisywania rzutki po „Cofnij”.
   const [padKey, setPadKey] = useState(0);
+  // Pierwsza rzutka gry w trybie rzutek (wcześniejsza niż zapis pierwszej serii).
+  const [firstDartAt, setFirstDartAt] = useState<number | null>(null);
+  // Licznik przy graczach, którzy skończyli, tyka tylko wtedy, gdy ktoś już skończył.
+  const now = useNow(finishOrder(game).length > 0);
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
@@ -67,7 +75,7 @@ export function PlayView({
   const canUndo = game.turns.length > 0 || darts.length > 0;
 
   function submit(score: number, darts?: number[], fields?: string[]) {
-    const next = applyTurn(game, score, darts, fields);
+    const next = applyTurn(game, score, darts, fields, { startedAt: firstDartAt ?? undefined });
     const turn = next.turns.at(-1)!;
     const place = placeOf(next, player.id);
     const shown = darts && darts.length > 1 ? `${formatDarts(darts)} = ${score}` : String(score);
@@ -126,6 +134,8 @@ export function PlayView({
     if (!last) return;
     const who = game.players.find((p) => p.id === last.playerId)?.name;
     if (mode === "darts" && last.darts && last.darts.length > 1) {
+      // Cofnięta pierwsza seria wraca z rzutkami – początek gry zostaje ten sam.
+      if (game.turns.length === 1) setFirstDartAt(game.startedAt ?? null);
       const labels = last.fields?.length === last.darts.length ? last.fields : last.darts.map(dartName);
       setPending({ darts: last.darts.slice(0, -1), labels: labels.slice(0, -1) });
       setFeedback({ text: `Cofnięto rzutkę ${labels.at(-1)} (${who})`, bust: false });
@@ -210,6 +220,7 @@ export function PlayView({
               <PlayerDot color={colorOf(p.id)} big={active} />
               <span className="flex min-w-0 flex-1 flex-col leading-tight">
                 <span className={`truncate land:text-xl ${active ? "font-bold" : "font-medium"} ${place ? "text-muted" : ""}`}>{p.name}</span>
+                {place && <SinceFinish at={finishedAt(game, p.id)} now={now} />}
                 {!place && last && (
                   <span className="truncate text-xs text-muted land:text-sm">
                     <span className={last.bust ? "text-red line-through" : ""}>
@@ -310,7 +321,10 @@ export function PlayView({
             key={`${game.turns.length}-${padKey}`}
             remaining={remaining}
             pending={pending}
-            onPendingChange={setPending}
+            onPendingChange={(p) => {
+              if (game.turns.length === 0 && p.darts.length > 0 && firstDartAt === null) setFirstDartAt(Date.now());
+              setPending(p);
+            }}
             onSubmit={submit}
           />
         ) : (
