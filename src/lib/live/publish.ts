@@ -17,6 +17,7 @@ export function publishLive(game: GameState) {
       players: game.players.map((p) => p.id),
       turns: game.turns,
       ended: game.endedEarly === true,
+      startedAt: game.startedAt,
       rev: Date.now(),
     },
   }).catch(() => {});

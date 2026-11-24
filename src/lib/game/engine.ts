@@ -116,6 +116,7 @@ export function applyTurn(
   score: number,
   darts?: number[],
   fields?: string[],
+  time: TurnTime = {},
 ): GameState {
   const player = currentPlayer(state);
   if (!player) throw new Error("Gra jest już zakończona.");
@@ -134,7 +135,26 @@ export function applyTurn(
       ? { fields: [...fields] }
       : {}),
   };
-  return { ...state, turns: [...state.turns, turn] };
+  // Czas serii: domyślnie teraz; null = nie zapisujemy (np. serwer odtwarza starą grę bez czasów).
+  const at = time.at === undefined ? Date.now() : time.at;
+  if (at === null || !isTime(at)) return { ...state, turns: [...state.turns, turn] };
+  turn.at = at;
+  // Początek gry: pierwsza rzutka (w trybie rzutek wcześniej niż zapis pierwszej serii).
+  const startedAt =
+    state.startedAt ?? (state.turns.length === 0 ? (isTime(time.startedAt) && time.startedAt <= at ? time.startedAt : at) : undefined);
+  return { ...state, turns: [...state.turns, turn], ...(startedAt !== undefined ? { startedAt } : {}) };
+}
+
+/** Czas zapisu serii i (przy pierwszej serii) pierwszej rzutki gry. */
+export interface TurnTime {
+  /** Kiedy zapisano serię; brak = teraz, null = bez czasu. */
+  at?: number | null;
+  /** Kiedy rzucono pierwszą rzutkę gry (tylko przy pierwszej serii). */
+  startedAt?: number;
+}
+
+function isTime(v: unknown): v is number {
+  return typeof v === "number" && Number.isSafeInteger(v) && v > 0;
 }
 
 /** Czy można zakończyć grę teraz: ktoś już skończył, a gra jeszcze trwa. */
@@ -158,7 +178,11 @@ export function undoLastTurn(state: GameState): GameState {
     return rest;
   }
   if (state.turns.length === 0) return state;
-  return { ...state, turns: state.turns.slice(0, -1) };
+  const turns = state.turns.slice(0, -1);
+  if (turns.length > 0) return { ...state, turns };
+  // Bez serii gra jeszcze się nie zaczęła.
+  const { startedAt: _, ...rest } = state;
+  return { ...rest, turns };
 }
 
 /** Ostatnia seria gracza (do pokazania przy wyniku), albo null. */
@@ -334,4 +358,53 @@ export function checkout(left: number, darts: number = DARTS_PER_TURN): string[]
 /** „T20 + D20” do pokazania w podpowiedzi. */
 export function formatCheckout(names: string[]): string {
   return names.join(" + ");
+}
+
+/*
+ * Czas gry: od pierwszej rzutki do ostatniej serii. Czas gracza, który
+ * skończył: od pierwszej rzutki do jego serii kończącej.
+ */
+
+/** Początek gry (ms) albo null, gdy gra nie ma zapisanych czasów. */
+export function gameStart(state: GameState): number | null {
+  return state.startedAt ?? state.turns[0]?.at ?? null;
+}
+
+/** Ostatnia seria gry (ms) albo null. */
+export function gameEnd(state: GameState): number | null {
+  return state.turns.at(-1)?.at ?? null;
+}
+
+/** Czas całej gry w ms (od pierwszej rzutki do ostatniej serii) albo null. */
+export function gameDuration(state: GameState): number | null {
+  const start = gameStart(state);
+  const end = gameEnd(state);
+  return start !== null && end !== null && end >= start ? end - start : null;
+}
+
+/** Kiedy gracz trafił równo (ms) albo null, gdy jeszcze gra lub brak czasu. */
+export function finishedAt(state: GameState, playerId: PlayerId): number | null {
+  let total = 0;
+  for (const t of state.turns) {
+    if (t.playerId !== playerId || t.bust) continue;
+    total += t.scored;
+    if (total === state.settings.target) return t.at ?? null;
+  }
+  return null;
+}
+
+/** Po jakim czasie gracz skończył (ms od pierwszej rzutki) albo null. */
+export function finishTime(state: GameState, playerId: PlayerId): number | null {
+  const start = gameStart(state);
+  const end = finishedAt(state, playerId);
+  return start !== null && end !== null && end >= start ? end - start : null;
+}
+
+/** „4:07”, „12:30”, „1:05:09” – czas w minutach i sekundach (z godzinami, gdy trzeba). */
+export function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = String(total % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }

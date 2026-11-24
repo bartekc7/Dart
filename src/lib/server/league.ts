@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { applyTurn, createGame, endGame, isGameOver, standings } from "../game/engine";
+import { applyTurn, createGame, endGame, gameDuration, gameEnd, gameStart, isGameOver, standings } from "../game/engine";
 import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
 import type { EntryMode, GameState, Turn } from "../game/types";
 import type { Db } from "./db";
@@ -340,6 +340,16 @@ export interface GameInput {
   turns?: unknown;
   /** true = gra zakończona przyciskiem „Zakończ grę”. */
   ended?: unknown;
+  /** Pierwsza rzutka gry (ms). */
+  startedAt?: unknown;
+}
+
+/** Najdłuższa gra, której czas zapisujemy (dłuższa to raczej zapomniany telefon). */
+const MAX_GAME_MS = 12 * 60 * 60 * 1000;
+
+/** Czas z telefonu: liczba ms, nie z przyszłości (z zapasem na rozjechany zegar). */
+function clientTime(v: unknown): number | null {
+  return typeof v === "number" && Number.isSafeInteger(v) && v > 0 && v < Date.now() + 60 * 60 * 1000 ? v : null;
 }
 
 /**
@@ -364,7 +374,8 @@ async function replayGame(db: Db, me: Me, input: GameInput): Promise<GameState> 
     for (const t of turns) {
       const darts = Array.isArray(t?.darts) ? t.darts.map(Number) : undefined;
       const fields = Array.isArray(t?.fields) ? t.fields.filter((f) => typeof f === "string") : undefined;
-      state = applyTurn(state, Number(t?.scored), darts, fields);
+      const startedAt = clientTime(input.startedAt) ?? undefined;
+      state = applyTurn(state, Number(t?.scored), darts, fields, { at: clientTime(t?.at), startedAt });
     }
     if (input.ended === true) state = endGame(state);
   } catch {
@@ -474,10 +485,17 @@ export async function saveGame(db: Db, me: Me, input: GameInput) {
   const { rows } = await db.query("select league_id from games where id = $1", [id]);
   if (rows[0] && rows[0].league_id !== me.league.id) throw new UserError("Nie można zapisać tej gry.", 403);
 
+  // Czas gry: od pierwszej rzutki do ostatniej serii (stare wersje aplikacji go nie wysyłają).
+  const duration = gameDuration(state);
+  const timed = duration !== null && duration <= MAX_GAME_MS;
+  const startedAt = timed ? new Date(gameStart(state)!) : null;
+  const endedAt = timed ? new Date(gameEnd(state)!) : null;
+
   await db.query("delete from games where id = $1", [id]);
   await db.query(
-    "insert into games (id, league_id, target, turns, created_by) values ($1, $2, $3, $4, $5)",
-    [id, me.league.id, target, JSON.stringify(state.turns), me.member.id],
+    `insert into games (id, league_id, target, turns, created_by, started_at, ended_at)
+     values ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, me.league.id, target, JSON.stringify(state.turns), me.member.id, startedAt, endedAt],
   );
   for (const s of standings(state)) {
     await db.query("insert into game_results (game_id, member_id, place) values ($1, $2, $3)", [
@@ -509,9 +527,10 @@ export const HISTORY_GAMES = 50;
 export async function leagueGames(db: Db, leagueId: string, limit = HISTORY_GAMES): Promise<GameRecord[]> {
   const { rows } = await db.query(
     `with recent as (
-       select id, target, finished_at from games where league_id = $1
+       select id, target, finished_at, started_at, ended_at from games where league_id = $1
         order by finished_at desc limit $2)
-     select recent.id, recent.target, recent.finished_at, r.member_id, m.name, r.place
+     select recent.id, recent.target, recent.finished_at, r.member_id, m.name, r.place,
+            (extract(epoch from recent.ended_at - recent.started_at) * 1000)::bigint as duration_ms
        from recent join game_results r on r.game_id = recent.id join members m on m.id = r.member_id
       order by recent.finished_at desc, recent.id, r.place`,
     [leagueId, limit],
@@ -522,6 +541,7 @@ export async function leagueGames(db: Db, leagueId: string, limit = HISTORY_GAME
       id: r.id,
       finishedAt: new Date(r.finished_at).toISOString(),
       target: r.target,
+      ...(r.duration_ms != null ? { durationMs: Number(r.duration_ms) } : {}),
       results: [],
     };
     g.results.push({ id: r.member_id, name: r.name, place: r.place });

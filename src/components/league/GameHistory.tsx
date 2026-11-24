@@ -5,6 +5,7 @@ import { PlayerDot } from "@/components/ui/PlayerDot";
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/Field";
 import { api } from "@/lib/api";
+import { formatDuration } from "@/lib/game/engine";
 import type { GameRecord } from "@/lib/game/history";
 import { useLeague, usePlayerColors } from "./LeagueProvider";
 import { Loading } from "./StatusScreens";
@@ -76,6 +77,7 @@ export function GameHistory() {
               <span>{when(g.finishedAt)}</span>
               <span>
                 do {g.target}
+                {g.durationMs != null && ` · ⏱ ${formatDuration(g.durationMs)}`}
                 {g.results.length === 1 && " · w pojedynkę"}
               </span>
             </div>
