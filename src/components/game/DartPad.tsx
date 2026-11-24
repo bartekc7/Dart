@@ -6,19 +6,31 @@ import { KeyGrid, type Key } from "./Keypad";
 
 const PREFIX = { 1: "", 2: "D", 3: "T" } as const;
 
+/** Rzutki już wpisane w bieżącej serii (punkty i pola, np. 60 / „T20”). */
+export interface PendingDarts {
+  darts: number[];
+  labels: string[];
+}
+
+export const NO_DARTS: PendingDarts = { darts: [], labels: [] };
+
 /**
  * Wpisywanie serii rzutka po rzutce. Seria kończy się po trzeciej rzutce
  * albo wcześniej, gdy gracz trafi równo lub przekroczy cel (dalej nie rzuca).
+ * Wpisane rzutki trzyma ekran gry, żeby „Cofnij” i podpowiedź je widziały.
  */
 export function DartPad({
   remaining,
+  pending,
+  onPendingChange,
   onSubmit,
 }: {
   remaining: number;
+  pending: PendingDarts;
+  onPendingChange: (p: PendingDarts) => void;
   onSubmit: (score: number, darts: number[], fields: string[]) => void;
 }) {
-  const [darts, setDarts] = useState<number[]>([]);
-  const [labels, setLabels] = useState<string[]>([]);
+  const { darts, labels } = pending;
   const [input, setInput] = useState("");
   const [mult, setMult] = useState<Mult>(1);
 
@@ -41,12 +53,10 @@ export function DartPad({
     setInput("");
     setMult(1);
     if (next.length === DARTS_PER_TURN || sum >= remaining) {
-      setDarts([]);
-      setLabels([]);
+      onPendingChange(NO_DARTS);
       onSubmit(sum, next, [...labels, field]);
     } else {
-      setDarts(next);
-      setLabels([...labels, field]);
+      onPendingChange({ darts: next, labels: [...labels, field] });
     }
   }
 
@@ -56,8 +66,7 @@ export function DartPad({
       // Puste pole: wracamy do poprzedniej rzutki, żeby ją poprawić.
       if (darts.length) {
         setInput(String(darts.at(-1)));
-        setDarts(darts.slice(0, -1));
-        setLabels(labels.slice(0, -1));
+        onPendingChange({ darts: darts.slice(0, -1), labels: labels.slice(0, -1) });
       }
       return;
     }

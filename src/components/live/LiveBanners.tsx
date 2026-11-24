@@ -6,14 +6,16 @@ import { useLeague, usePlayerColors } from "@/components/league/LeagueProvider";
 import { accentBackground } from "@/lib/colors";
 import { currentPlayer, remainingFor, standings } from "@/lib/game/engine";
 import { useSeenFinished, useStoredGame } from "@/lib/game/storage";
-import { usePoll } from "@/lib/live/usePoll";
+import { FAST_POLL_MS, IDLE_POLL_MS, usePoll } from "@/lib/live/usePoll";
 import type { LiveGame } from "@/lib/server/league";
 
-export const LIVE_POLL_MS = 3000;
+/** Szybko, gdy ktoś właśnie gra; w przeciwnym razie rzadziej. */
+const pollEvery = (data: { games: LiveGame[] } | null) =>
+  data?.games.some((g) => !g.finished) ? FAST_POLL_MS : IDLE_POLL_MS;
 
 /** Baner „Trwa gra” / „Twoja kolej” / „Koniec gry” na ekranie startowym. */
 export function LiveBanners({ myId }: { myId: string }) {
-  const poll = usePoll<{ games: LiveGame[] }>("/api/live", LIVE_POLL_MS);
+  const poll = usePoll<{ games: LiveGame[] }>("/api/live", pollEvery);
   const [localGame] = useStoredGame();
   const [seen] = useSeenFinished();
   const { refresh } = useLeague();

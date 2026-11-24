@@ -6,8 +6,12 @@ import { useState } from "react";
 import {
   applyTurn,
   canEndEarly,
+  checkout,
   currentPlayer,
+  DARTS_PER_TURN,
+  dartName,
   endGame,
+  formatCheckout,
   formatDarts,
   isValidDart,
   lastTurnOf,
@@ -24,7 +28,7 @@ import { useWakeLock } from "@/lib/useWakeLock";
 import { useVoice } from "@/lib/game/storage";
 import { say } from "@/lib/speech";
 import { removeLive } from "@/lib/live/publish";
-import { DartPad } from "./DartPad";
+import { DartPad, NO_DARTS, type PendingDarts } from "./DartPad";
 import { Keypad } from "./Keypad";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -50,9 +54,17 @@ export function PlayView({
   // Telefon leży przy tablicy: ekran nie gaśnie między seriami.
   useWakeLock();
   const [voice] = useVoice();
+  // Rzutki wpisane w bieżącej serii (tryb „każda rzutka osobno”).
+  const [pending, setPending] = useState<PendingDarts>(NO_DARTS);
+  // Zmiana klucza czyści pole wpisywania rzutki po „Cofnij”.
+  const [padKey, setPadKey] = useState(0);
 
   const player = currentPlayer(game)!;
   const remaining = remainingFor(game, player.id);
+  const darts = mode === "darts" ? pending.darts : [];
+  // Podpowiedź, jak skończyć równo rzutkami, które zostały w tej serii.
+  const hint = checkout(remaining - darts.reduce((a, b) => a + b, 0), DARTS_PER_TURN - darts.length);
+  const canUndo = game.turns.length > 0 || darts.length > 0;
 
   function submit(score: number, darts?: number[], fields?: string[]) {
     const next = applyTurn(game, score, darts, fields);
@@ -78,6 +90,7 @@ export function PlayView({
     // Krótkie potwierdzenie dotykiem (Android; iPhone nie obsługuje wibracji w przeglądarce).
     vibrate(turn.bust ? [70, 50, 70] : place ? [30, 40, 120] : 15);
     setInput("");
+    setPending(NO_DARTS);
     onChange(next);
   }
 
@@ -95,12 +108,31 @@ export function PlayView({
     onChange(endGame(game));
   }
 
+  /**
+   * Jedno dotknięcie cofa ostatnią rzecz: w trybie rzutek ostatnią rzutkę
+   * (także z poprzedniej serii – wraca ona z pozostałymi rzutkami),
+   * w trybie sumy ostatnią serię.
+   */
   function undo() {
+    setInput("");
+    setPadKey((k) => k + 1);
+    vibrate(15);
+    if (darts.length) {
+      setFeedback({ text: `Cofnięto rzutkę ${pending.labels.at(-1)}`, bust: false });
+      setPending({ darts: darts.slice(0, -1), labels: pending.labels.slice(0, -1) });
+      return;
+    }
     const last = game.turns.at(-1);
     if (!last) return;
     const who = game.players.find((p) => p.id === last.playerId)?.name;
-    setFeedback({ text: `Cofnięto serię gracza ${who}`, bust: false });
-    setInput("");
+    if (mode === "darts" && last.darts && last.darts.length > 1) {
+      const labels = last.fields?.length === last.darts.length ? last.fields : last.darts.map(dartName);
+      setPending({ darts: last.darts.slice(0, -1), labels: labels.slice(0, -1) });
+      setFeedback({ text: `Cofnięto rzutkę ${labels.at(-1)} (${who})`, bust: false });
+    } else {
+      setPending(NO_DARTS);
+      setFeedback({ text: `Cofnięto serię: ${who} ${last.scored}`, bust: false });
+    }
     onChange(undoLastTurn(game));
   }
 
@@ -125,21 +157,31 @@ export function PlayView({
           <button
             type="button"
             onClick={undo}
-            disabled={game.turns.length === 0}
-            className="h-10 rounded-full bg-black/20 px-3 text-sm font-semibold disabled:opacity-40"
+            disabled={!canUndo}
+            aria-label={darts.length || (mode === "darts" && game.turns.at(-1)?.darts) ? "Cofnij ostatnią rzutkę" : "Cofnij ostatnią serię"}
+            className="h-11 shrink-0 whitespace-nowrap rounded-full bg-white/25 px-4 text-base font-bold ring-1 ring-white/40 transition active:scale-95 disabled:opacity-40 max-[380px]:px-3"
           >
             ↶ Cofnij
           </button>
         </div>
         <p className="text-6xl leading-tight font-bold tabular-nums max-[380px]:text-5xl [@media(min-width:48rem)_and_(min-height:36rem)]:text-8xl">{remaining}</p>
-        {feedback ? (
-          <p role="status" className="mx-auto mt-1 w-fit rounded-full bg-black/25 px-3 py-0.5 text-sm font-medium">
-            {feedback.bust ? "✋ " : feedback.text.endsWith("🎯") ? "" : "✓ "}
-            {feedback.text}
+        {/* Podpowiedź zakończenia zastępuje podpis „zostało”, żeby nie zabierać miejsca. */}
+        {hint ? (
+          <p className="mx-auto w-fit rounded-full bg-white/20 px-3 font-mono text-lg leading-snug font-bold land:text-2xl">
+            <span className="font-sans text-sm font-semibold opacity-90">🎯 kończ: </span>
+            {formatCheckout(hint)}
           </p>
         ) : (
-          <p className="mt-1 text-sm uppercase tracking-wider opacity-90">
-            zostało · gra do {game.settings.target}
+          !feedback && (
+            <p className="mt-1 text-sm uppercase tracking-wider opacity-90">
+              zostało · gra do {game.settings.target}
+            </p>
+          )
+        )}
+        {feedback && (
+          <p role="status" className="mx-auto mt-1 w-fit rounded-full bg-black/25 px-3 py-0.5 text-sm font-medium">
+            {feedback.bust ? "✋ " : feedback.text.endsWith("🎯") ? "" : feedback.text.startsWith("Cofnięto") ? "↶ " : "✓ "}
+            {feedback.text}
           </p>
         )}
       </section>
@@ -264,7 +306,13 @@ export function PlayView({
           </div>
         ) : mode === "darts" ? (
           // key: nowa seria (także po cofnięciu) zaczyna od pustych rzutek.
-          <DartPad key={game.turns.length} remaining={remaining} onSubmit={submit} />
+          <DartPad
+            key={`${game.turns.length}-${padKey}`}
+            remaining={remaining}
+            pending={pending}
+            onPendingChange={setPending}
+            onSubmit={submit}
+          />
         ) : (
           <Keypad value={input} onChange={setInput} onSubmit={() => submit(Number(input))} remaining={remaining} />
         )}

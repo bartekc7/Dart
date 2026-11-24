@@ -265,3 +265,73 @@ export function fieldValue(key: string): number | null {
   if (mult === 1 && field > 20 && field !== 25) return null;
   return dartValue(field, mult);
 }
+
+/*
+ * Podpowiedź zakończenia. Gramy „do równego” bez wymogu double,
+ * więc kończyć można dowolnym polem. Szukamy najmniejszej liczby rzutek,
+ * a przy remisie pól najłatwiejszych do trafienia (duże pojedyncze,
+ * potem double/triple, na końcu środek tarczy).
+ */
+
+interface Throw {
+  value: number;
+  name: string;
+  cost: number;
+}
+
+const THROWS: Throw[] = (() => {
+  const list: Throw[] = [];
+  for (let f = 20; f >= 1; f--) {
+    // Double/triple najchętniej w okolicy „dwudziestki”, gdzie i tak się celuje.
+    const near = (20 - f) * 0.05;
+    list.push({ value: f * 3, name: `T${f}`, cost: 2 + near });
+    list.push({ value: f * 2, name: `D${f}`, cost: 2 + near });
+    list.push({ value: f, name: String(f), cost: 1 + near / 10 });
+  }
+  list.push({ value: 25, name: "25", cost: 2.5 }, { value: 50, name: "D25", cost: 3 });
+  return list;
+})();
+
+type Plan = { names: string[]; cost: number } | null;
+const plans = new Map<string, Plan>();
+
+function plan(left: number, darts: number): Plan {
+  if (left <= 0 || darts <= 0) return null;
+  const key = `${left}/${darts}`;
+  const known = plans.get(key);
+  if (known !== undefined) return known;
+  let best: Plan = null;
+  // Najpierw jedna rzutka; więcej rzutek tylko, gdy jedną się nie da.
+  for (const t of THROWS) {
+    if (t.value === left && (!best || t.cost < best.cost)) best = { names: [t.name], cost: t.cost };
+  }
+  if (!best && darts > 1) {
+    for (const t of THROWS) {
+      if (t.value >= left) continue;
+      const rest = plan(left - t.value, darts - 1);
+      if (!rest) continue;
+      const len = rest.names.length + 1;
+      const cost = t.cost + rest.cost;
+      if (!best || len < best.names.length || (len === best.names.length && cost < best.cost))
+        best = { names: [t.name, ...rest.names], cost };
+    }
+  }
+  plans.set(key, best);
+  return best;
+}
+
+/**
+ * Jak skończyć równo, mając `darts` rzutek (1–3), np. 100 → ["T20", "D20"].
+ * null, gdy się nie da (za dużo punktów albo brak rzutek).
+ */
+export function checkout(left: number, darts: number = DARTS_PER_TURN): string[] | null {
+  if (!Number.isInteger(left) || left > 60 * darts) return null;
+  const p = plan(left, Math.min(darts, DARTS_PER_TURN));
+  // Najpierw najwyższe pole – tak zwykle się rzuca i czyta.
+  return p ? [...p.names].sort((a, b) => (fieldValue(b) ?? 0) - (fieldValue(a) ?? 0)) : null;
+}
+
+/** „T20 + D20” do pokazania w podpowiedzi. */
+export function formatCheckout(names: string[]): string {
+  return names.join(" + ");
+}

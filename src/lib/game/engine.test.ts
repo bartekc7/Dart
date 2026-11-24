@@ -19,6 +19,7 @@ import {
   remainingFor,
   standings,
   undoLastTurn,
+  checkout,
 } from "./engine";
 import type { GameState } from "./types";
 
@@ -235,5 +236,40 @@ describe("pola rzutek", () => {
     expect(applyTurn(g, 81, [60, 16, 5], ["T20", "D8", "5"]).turns[0].fields).toEqual(["T20", "D8", "5"]);
     expect(applyTurn(g, 81, [60, 16, 5], ["T20", "8", "5"]).turns[0].fields).toBeUndefined();
     expect(applyTurn(g, 81, [60, 16, 5]).turns[0].fields).toBeUndefined();
+  });
+});
+
+describe("podpowiedź zakończenia", () => {
+  it("jedną rzutką, gdy się da", () => {
+    expect(checkout(20)).toEqual(["20"]);
+    expect(checkout(60)).toEqual(["T20"]);
+    expect(checkout(40)).toEqual(["D20"]);
+    expect(checkout(50)).toEqual(["D25"]);
+  });
+
+  it("najmniej rzutek, najwyższe pole najpierw", () => {
+    expect(checkout(100)).toEqual(["T20", "D20"]);
+    expect(checkout(37)).toEqual(["20", "17"]);
+    expect(checkout(180)).toEqual(["T20", "T20", "T20"]);
+    expect(checkout(101)?.length).toBe(2);
+  });
+
+  it("każda podpowiedź sumuje się do reszty i mieści w rzutkach", () => {
+    for (let darts = 1; darts <= 3; darts++) {
+      for (let left = 1; left <= 180; left++) {
+        const c = checkout(left, darts);
+        if (!c) continue;
+        expect(c.length).toBeLessThanOrEqual(darts);
+        expect(c.reduce((s, f) => s + fieldValue(f)!, 0)).toBe(left);
+      }
+    }
+  });
+
+  it("brak podpowiedzi, gdy się nie da", () => {
+    expect(checkout(0)).toBeNull();
+    expect(checkout(181)).toBeNull();
+    expect(checkout(61, 1)).toBeNull();
+    expect(checkout(179)).toBeNull(); // 179 nie da się trzema rzutkami
+    expect(checkout(5, 0)).toBeNull();
   });
 });
