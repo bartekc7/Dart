@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { applyTurn, createGame, endGame, gameDuration, gameEnd, gameStart, isGameOver, standings } from "../game/engine";
 import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
+import { computeLeagueStats, type LeagueStats } from "../game/leagueStats";
 import type { EntryMode, GameState, Turn } from "../game/types";
 import type { Db } from "./db";
 
@@ -661,4 +662,36 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
       players: r.players,
     })),
   };
+}
+
+/**
+ * Statystyki całej ligi ze wszystkich gier. Czas gry (started_at/ended_at)
+ * czytamy przez to_jsonb, więc zapytanie działa także zanim te kolumny powstaną.
+ */
+export async function leagueStats(db: Db, leagueId: string): Promise<LeagueStats> {
+  const [members, { rows }] = await Promise.all([
+    listMembers(db, leagueId, true),
+    db.query(
+      `select g.id, g.finished_at, g.target, g.turns,
+              to_jsonb(g) ->> 'started_at' as started_at, to_jsonb(g) ->> 'ended_at' as ended_at,
+              coalesce((select json_agg(json_build_object('memberId', r.member_id, 'place', r.place))
+                          from game_results r where r.game_id = g.id), '[]') as results
+         from games g
+        where g.league_id = $1
+        order by g.finished_at desc`,
+      [leagueId],
+    ),
+  ]);
+  return computeLeagueStats(
+    rows.map((r) => ({
+      id: r.id,
+      finishedAt: new Date(r.finished_at).toISOString(),
+      target: r.target,
+      turns: (r.turns as Turn[]) ?? [],
+      results: r.results,
+      startedAt: r.started_at ? new Date(r.started_at).toISOString() : null,
+      endedAt: r.ended_at ? new Date(r.ended_at).toISOString() : null,
+    })),
+    members.map((m) => ({ id: m.id, name: m.name, color: m.color })),
+  );
 }
