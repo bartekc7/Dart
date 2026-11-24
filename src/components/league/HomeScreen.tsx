@@ -10,6 +10,7 @@ import { LoadError, Loading } from "./StatusScreens";
 import { InstallHint } from "@/components/InstallHint";
 import { HomeHeader } from "./HomeHeader";
 import { Welcome } from "./Welcome";
+import { WhatsNewPopup } from "@/components/WhatsNew";
 
 export function HomeScreen() {
   const { state } = useLeague();
@@ -26,6 +27,7 @@ export function HomeScreen() {
     return (
       <>
         <HomeHeader />
+        <WhatsNewPopup />
         <Welcome />
       </>
     );
@@ -34,6 +36,7 @@ export function HomeScreen() {
   return (
     <>
       <HomeHeader me={me} />
+      <WhatsNewPopup />
 
       {/* Telefon: jedna kolumna (baner, nowa gra, ranking, ostatnie gry).
           Tablet i komputer: ranking w prawej kolumnie obok „Nowa gra”. */}
