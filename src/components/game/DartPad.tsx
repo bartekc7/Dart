@@ -111,7 +111,7 @@ export function DartPad({
           25
         </FieldKey>
         <FieldKey small onClick={() => commit(50, "D25")} finish={left === 50} label="Bull, 50 punktów">
-          Bull
+          <span className="flex flex-col">Bull<span className="text-xs font-semibold whitespace-nowrap opacity-70">50 pkt</span></span>
         </FieldKey>
       </div>
 
@@ -168,7 +168,7 @@ function FieldKey({
       aria-pressed={pressed}
       className={`min-w-0 rounded-2xl font-bold tabular-nums transition active:scale-95 disabled:opacity-30 land:h-auto! land:min-h-9 ${
         small
-          ? "h-11 font-sans text-base max-[380px]:text-sm [@media(max-height:700px)]:h-9 md:h-14 land:text-xl"
+          ? "h-14 font-sans text-base leading-tight max-[380px]:h-12 max-[380px]:text-sm [@media(max-height:700px)]:h-11 md:h-16 land:text-xl"
           : "h-12 font-mono text-2xl max-[380px]:h-11 [@media(max-height:700px)]:h-10 md:h-14 land:text-3xl"
       } ${
         pressed
