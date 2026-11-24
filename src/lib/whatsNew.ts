@@ -1,0 +1,92 @@
+/**
+ * Lista zmian pokazywana w oknie „Co nowego”.
+ * Nowe wydanie dopisujemy NA GÓRZE z nowym, większym `id` (data RRRR-MM-DD,
+ * a gdy dwa wydania jednego dnia: RRRR-MM-DD-2). Okno pokaże się raz każdemu,
+ * kto grał wcześniej, a potem jest dostępne w Opcjach.
+ */
+export type WhatsNewItem = { icon: string; title: string; text: string };
+export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] };
+
+export const RELEASES: WhatsNewRelease[] = [
+  {
+    id: "2026-11-24",
+    date: "24 listopada",
+    items: [
+      {
+        icon: "🎯",
+        title: "Podpowiedź, jak skończyć",
+        text: "Gdy da się zamknąć grę, pod wynikiem pojawi się np. „kończ: T20 + D20” – najkrótsza droga do mety.",
+      },
+      {
+        icon: "🟩",
+        title: "Pola 1–20 zamiast cyfr",
+        text: "W trybie rzutek dotykasz pola, a rzutka zapisuje się od razu. Pod spodem Double, Triple, Pudło, 25 i Bull. Pola, którymi kończysz grę, świecą na zielono.",
+      },
+      {
+        icon: "↶",
+        title: "Duży przycisk Cofnij",
+        text: "Pomyłka? Jedno dotknięcie cofa ostatnią rzutkę – także z serii, która już się zapisała.",
+      },
+      {
+        icon: "⏱",
+        title: "Czas gry",
+        text: "Liczymy, ile trwała gra. Przy zwycięzcy widać „+m:ss od mety”, a czasy są na wynikach i w historii.",
+      },
+      {
+        icon: "📊",
+        title: "Statystyki ligi",
+        text: "Nowy ekran z rekordami, tarczą trafień całej ligi lub wybranego gracza, czasami gier i ulubionymi dniami gry.",
+      },
+      {
+        icon: "⚡",
+        title: "Szybszy podgląd na innych telefonach",
+        text: "Wynik na telefonach pozostałych graczy odświeża się szybciej i od razu po powrocie do aplikacji.",
+      },
+    ],
+  },
+];
+
+export const LATEST_ID = RELEASES[0].id;
+export const SEEN_KEY = "dart:whatsNewSeen";
+
+/** Klucze, które świadczą, że na tym telefonie ktoś już korzystał z aplikacji. */
+const PAST_USE_KEYS = [
+  "dart:game",
+  "dart:lastPlayerIds",
+  "dart:seenFinished",
+  "dart:theme",
+  "dart:voice",
+  "dart:installHintHidden",
+];
+
+/** Wydania, których użytkownik jeszcze nie widział (najnowsze pierwsze). */
+export function unseenReleases(seen: string | null): WhatsNewRelease[] {
+  if (!seen) return RELEASES;
+  return RELEASES.filter((r) => r.id > seen);
+}
+
+/**
+ * Czy pokazać okno. Nowej osobie (pierwsza wizyta) nie pokazujemy – od razu
+ * zapamiętujemy najnowszą wersję. Kto grał przed wprowadzeniem okna
+ * (brak znacznika, ale są inne ślady), zobaczy je raz.
+ */
+export function shouldShow(seen: string | null, usedBefore: boolean): boolean {
+  if (seen === null) return usedBefore;
+  return unseenReleases(seen).length > 0;
+}
+
+export function readSeen(): { seen: string | null; usedBefore: boolean } {
+  try {
+    const seen = localStorage.getItem(SEEN_KEY);
+    const usedBefore = PAST_USE_KEYS.some((k) => localStorage.getItem(k) !== null);
+    return { seen, usedBefore };
+  } catch {
+    return { seen: LATEST_ID, usedBefore: false };
+  }
+}
+
+export function markSeen() {
+  try {
+    localStorage.setItem(SEEN_KEY, LATEST_ID);
+  } catch {}
+}
