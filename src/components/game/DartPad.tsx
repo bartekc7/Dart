@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { DARTS_PER_TURN, dartName, dartValue, isValidDart, type Mult } from "@/lib/game/engine";
-import { KeyGrid, type Key } from "./Keypad";
-
-const PREFIX = { 1: "", 2: "D", 3: "T" } as const;
+import { DARTS_PER_TURN, dartName, type Mult } from "@/lib/game/engine";
 
 /** Rzutki już wpisane w bieżącej serii (punkty i pola, np. 60 / „T20”). */
 export interface PendingDarts {
@@ -14,9 +11,14 @@ export interface PendingDarts {
 
 export const NO_DARTS: PendingDarts = { darts: [], labels: [] };
 
+const FIELDS = Array.from({ length: 20 }, (_, i) => i + 1);
+const PREFIX = { 1: "", 2: "D", 3: "T" } as const;
+
 /**
- * Wpisywanie serii rzutka po rzutce. Seria kończy się po trzeciej rzutce
+ * Wpisywanie serii rzutka po rzutce: jedno dotknięcie pola zapisuje rzutkę
+ * (z Double/Triple – dwa dotknięcia). Seria kończy się po trzeciej rzutce
  * albo wcześniej, gdy gracz trafi równo lub przekroczy cel (dalej nie rzuca).
+ * Pomyłkę poprawia „↶ Cofnij” u góry ekranu.
  * Wpisane rzutki trzyma ekran gry, żeby „Cofnij” i podpowiedź je widziały.
  */
 export function DartPad({
@@ -31,27 +33,18 @@ export function DartPad({
   onSubmit: (score: number, darts: number[], fields: string[]) => void;
 }) {
   const { darts, labels } = pending;
-  const [input, setInput] = useState("");
   const [mult, setMult] = useState<Mult>(1);
 
   const total = darts.reduce((a, b) => a + b, 0);
-  // Rzutka, którą da się skończyć równo (np. zostało 40 → D20).
+  // Ile brakuje do równego: pola, którymi da się skończyć, świecą na zielono.
   const left = remaining - total;
-  const finish = left > 0 && isValidDart(left) ? left : null;
-  const field = input === "" ? null : Number(input);
-  const n = field === null ? null : dartValue(field, mult);
-  const invalid = field !== null && n === null;
-  const label = input ? `${PREFIX[mult]}${input}` : PREFIX[mult];
-  // Ostatnia rzutka serii: trzecia albo ta, która kończy lub przekracza cel.
-  const last =
-    darts.length === DARTS_PER_TURN - 1 || (n !== null && !invalid && total + n >= remaining);
 
-  /** Zapis pola rzutki (T20, D8, 5, D25 = bull), który trafia też do statystyk tarczy. */
+  /** Zapis pola rzutki (T20, D8, 5, D25 = bull, 0 = pudło) – trafia też do statystyk tarczy. */
   function commit(v: number, field = dartName(v)) {
     const next = [...darts, v];
     const sum = total + v;
-    setInput("");
     setMult(1);
+    vibrate(10);
     if (next.length === DARTS_PER_TURN || sum >= remaining) {
       onPendingChange(NO_DARTS);
       onSubmit(sum, next, [...labels, field]);
@@ -60,19 +53,9 @@ export function DartPad({
     }
   }
 
-  function press(k: Key) {
-    if (k === "⌫") {
-      if (input) return setInput(input.slice(0, -1));
-      // Puste pole: wracamy do poprzedniej rzutki, żeby ją poprawić.
-      if (darts.length) {
-        setInput(String(darts.at(-1)));
-        onPendingChange({ darts: darts.slice(0, -1), labels: labels.slice(0, -1) });
-      }
-      return;
-    }
-    if (k === "OK") return n !== null && !invalid && commit(n, mult === 1 ? dartName(n) : input === "25" ? "D25" : label);
-    if (input.length >= 2) return;
-    setInput(input === "0" ? k : input + k);
+  /** Double/Triple działa na jedną rzutkę; ponowne dotknięcie wyłącza. */
+  function toggle(m: 2 | 3) {
+    setMult(mult === m ? 1 : m);
   }
 
   return (
@@ -85,34 +68,16 @@ export function DartPad({
             <div
               key={i}
               aria-label={`Rzutka ${i + 1}`}
-              className={`flex h-11 min-w-0 flex-1 items-center justify-center rounded-2xl font-mono text-2xl font-bold ring-1 [@media(max-height:700px)]:h-9 md:h-14! land:text-4xl ${
-                current
-                  ? invalid
-                    ? "bg-surface text-red ring-2 ring-red"
-                    : "bg-surface ring-2 ring-cream"
-                  : done
-                    ? "bg-surface-2 ring-line"
-                    : "bg-surface/50 text-muted ring-line/50"
+              className={`flex h-10 min-w-0 flex-1 items-center justify-center rounded-2xl font-mono text-2xl font-bold ring-1 [@media(max-height:700px)]:h-9 md:h-14! land:text-4xl ${
+                current ? "bg-surface ring-2 ring-cream" : done ? "bg-surface-2 ring-line" : "bg-surface/50 text-muted ring-line/50"
               }`}
             >
               {done ? (
                 labels[i]
               ) : current ? (
-                input ? (
-                  <span>
-                    {label}
-                    {invalid && <span className="ml-1 text-base">✕</span>}
-                    {mult > 1 && n !== null && (
-                      <span className="ml-1 text-base text-muted">= {n}</span>
-                    )}
-                  </span>
-                ) : mult > 1 ? (
-                  <span className="font-sans text-base font-semibold text-cream">
-                    {mult === 2 ? "Double…" : "Triple…"}
-                  </span>
-                ) : (
-                  <span className="font-sans text-sm font-medium text-muted">{i + 1}. rzutka</span>
-                )
+                <span className={`font-sans font-semibold ${mult > 1 ? "text-base text-cream" : "text-sm text-muted"}`}>
+                  {mult === 2 ? "Double…" : mult === 3 ? "Triple…" : `${i + 1}. rzutka`}
+                </span>
               ) : (
                 "–"
               )}
@@ -121,54 +86,109 @@ export function DartPad({
         })}
         <div className="flex w-16 shrink-0 flex-col items-center justify-center text-center leading-tight land:w-20">
           <span className="text-xs text-muted">razem</span>
-          <span className="font-mono text-xl font-bold tabular-nums">
-            {total + (n !== null && !invalid ? n : 0)}
-          </span>
+          <span className="font-mono text-xl font-bold tabular-nums">{total}</span>
         </div>
       </div>
-      <div className="mb-2 flex gap-1.5 land:mb-3 land:gap-2">
-        <div
-          role="radiogroup"
-          aria-label="Mnożnik rzutki"
-          className="grid flex-[3] grid-cols-3 gap-1.5 land:gap-2"
-        >
-          {([1, 2, 3] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              role="radio"
-              aria-checked={mult === m}
-              onClick={() => setMult(m)}
-              className={`h-11 rounded-xl text-lg font-bold transition active:scale-95 max-[380px]:h-10 [@media(max-height:700px)]:h-10 land:h-12! ${
-                mult === m ? "bg-cream text-board" : "bg-surface text-muted ring-1 ring-line"
-              }`}
-            >
-              {m === 1 ? "X1" : m === 2 ? "Double" : "Triple"}
-            </button>
-          ))}
-        </div>
-        {finish !== null && (
-          <button
-            type="button"
-            onClick={() => commit(finish, dartName(finish))}
-            aria-label={`Kończ: ${dartName(finish)}`}
-            className="h-11 min-w-0 flex-[1.3] rounded-xl bg-green/15 font-mono text-lg font-bold text-green ring-1 ring-green/40 transition active:scale-95 max-[380px]:h-10 [@media(max-height:700px)]:h-10 land:h-12!"
+
+      {/* Pięć przycisków w rzędzie, równo z polami 1–20 poniżej. */}
+      <div className="mb-1.5 grid grid-cols-5 gap-1.5 land:mb-2 land:gap-2">
+        {([2, 3] as const).map((m) => (
+          <FieldKey
+            key={m}
+            small
+            pressed={mult === m}
+            finish={mult !== m && FIELDS.some((f) => f * m === left)}
+            onClick={() => toggle(m)}
+            label={m === 2 ? "Double" : "Triple"}
           >
-            🎯 {dartName(finish)}
-          </button>
-        )}
+            {m === 2 ? "Double" : "Triple"}
+          </FieldKey>
+        ))}
+        <FieldKey small muted onClick={() => commit(0, "0")} disabled={mult > 1} label="Pudło, 0 punktów">
+          Pudło
+        </FieldKey>
+        <FieldKey small onClick={() => commit(25, "25")} disabled={mult > 1} finish={mult === 1 && left === 25} label="25">
+          25
+        </FieldKey>
+        <FieldKey small onClick={() => commit(50, "D25")} finish={left === 50} label="Bull, 50 punktów">
+          Bull
+        </FieldKey>
       </div>
-      {invalid && (
-        <p role="alert" className="sr-only">
-          {label} – takiego pola nie ma
-        </p>
-      )}
-      <KeyGrid
-        onPress={press}
-        okLabel={last ? "Zapisz" : "Dalej"}
-        okAria={last ? "Zapisz serię" : "Następna rzutka"}
-        okDisabled={n === null || invalid}
-      />
+
+      <div
+        role="group"
+        aria-label="Pole trafienia"
+        className="grid grid-cols-5 gap-1.5 land:max-h-[26rem] land:flex-1 land:auto-rows-fr land:gap-2"
+      >
+        {FIELDS.map((f) => (
+          <FieldKey
+            key={f}
+            onClick={() => commit(f * mult, `${PREFIX[mult]}${f}`)}
+            accent={mult > 1}
+            finish={f * mult === left}
+            label={`${PREFIX[mult]}${f}`}
+          >
+            {mult > 1 && <span className="text-[0.7em] opacity-70">{PREFIX[mult]}</span>}
+            {f}
+          </FieldKey>
+        ))}
+      </div>
     </div>
   );
+}
+
+function FieldKey({
+  children,
+  onClick,
+  disabled,
+  small,
+  muted,
+  accent,
+  pressed,
+  finish,
+  label,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  small?: boolean;
+  muted?: boolean;
+  accent?: boolean;
+  pressed?: boolean;
+  /** Tym polem gracz kończy równo – podświetlone na zielono. */
+  finish?: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={pressed}
+      className={`min-w-0 rounded-2xl font-bold tabular-nums transition active:scale-95 disabled:opacity-30 land:h-auto! land:min-h-9 ${
+        small
+          ? "h-11 font-sans text-base max-[380px]:text-sm [@media(max-height:700px)]:h-9 md:h-14 land:text-xl"
+          : "h-12 font-mono text-2xl max-[380px]:h-11 [@media(max-height:700px)]:h-10 md:h-14 land:text-3xl"
+      } ${
+        pressed
+          ? "bg-cream text-board"
+          : finish
+            ? "bg-green/15 text-green ring-2 ring-green/60"
+            : accent
+              ? "bg-surface-2 text-cream ring-2 ring-cream/40"
+              : muted
+                ? "bg-surface text-muted ring-1 ring-line"
+                : "bg-surface-2 ring-1 ring-line"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function vibrate(ms: number) {
+  try {
+    navigator.vibrate?.(ms);
+  } catch {}
 }
