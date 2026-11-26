@@ -32,6 +32,7 @@ import {
   recoverWithCode,
   setEntryMode,
   whoAmI,
+  leagueAchievements,
 } from "./league";
 
 /**
@@ -337,6 +338,23 @@ describe.skipIf(!url)("liga w bazie", () => {
     await db.query("alter table games add column if not exists started_at timestamptz, add column if not exists ended_at timestamptz");
     await db.query("update games set started_at = now() - interval '7 minutes', ended_at = now() where id = 'tarcza1'");
     expect((await leagueStats(db, me.league.id)).durations).toMatchObject({ games: 1, avgMs: 7 * 60_000 });
+  });
+
+  it("osiągnięcia z historii gier; trwającą grę można pominąć", async () => {
+    const org = newDeviceToken();
+    await createLeague(db, org, "Osiągnięcia", "Ola");
+    const me = await requireMe(db, org);
+    const kuba = await addMember(db, me, "Kuba");
+    const players = [me.member.id, kuba.id];
+    await saveGame(db, me, { id: "os1", target: 101, players, turns: [60, 20, 41].map((x) => ({ scored: x })) });
+    await saveGame(db, me, { id: "os2", target: 101, players, turns: [101].map((x) => ({ scored: x })) });
+    const all = await leagueAchievements(db, me.league.id);
+    expect(all[me.member.id]).toMatchObject({ games: 2, wins: 2, winStreak: 2, points: 202 });
+    expect(Object.keys(all[me.member.id].unlocked).map(Number)).toEqual(expect.arrayContaining([3, 9, 10, 17, 22, 30, 49]));
+    expect(all[kuba.id].unlocked[4]).toMatchObject({ gameId: "os1" });
+    const without = await leagueAchievements(db, me.league.id, "os2");
+    expect(without[me.member.id]).toMatchObject({ games: 1, wins: 1 });
+    expect(without[me.member.id].unlocked[10]).toBeUndefined();
   });
 
   it("naprawa: odtwarza wyniki gracza skasowanego starym „Usuń gracza”", async () => {

@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { applyTurn, createGame, endGame, gameDuration, gameEnd, gameStart, isGameOver, standings } from "../game/engine";
 import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
 import { computeLeagueStats, type LeagueStats } from "../game/leagueStats";
+import { computeProgress, type AchProgress } from "../game/achievements";
 import type { EntryMode, GameState, Turn } from "../game/types";
 import type { Db } from "./db";
 
@@ -736,5 +737,39 @@ export async function leagueStats(db: Db, leagueId: string): Promise<LeagueStats
       endedAt: r.ended_at ? new Date(r.ended_at).toISOString() : null,
     })),
     members.map((m) => ({ id: m.id, name: m.name, color: m.color })),
+  );
+}
+
+/**
+ * Osiągnięcia wszystkich graczy ligi, liczone z historii gier od najstarszej.
+ * `exclude` pomija jedną grę – telefon w trakcie gry dokłada ją sam,
+ * żeby wiedzieć, co jest nowe (także gdy gra była już raz zapisana).
+ */
+export async function leagueAchievements(
+  db: Db,
+  leagueId: string,
+  exclude?: string,
+): Promise<Record<string, AchProgress>> {
+  const { rows } = await db.query(
+    `select g.id, g.finished_at, g.target, g.turns,
+            coalesce((select json_object_agg(r.member_id, r.place)
+                        from game_results r where r.game_id = g.id), '{}') as places
+       from games g
+      where g.league_id = $1 and g.id <> $2
+      order by g.finished_at asc, g.id`,
+    [leagueId, exclude ?? ""],
+  );
+  return computeProgress(
+    rows.map((r) => {
+      const places = r.places as Record<string, number>;
+      return {
+        id: r.id,
+        target: r.target,
+        players: Object.keys(places),
+        turns: (r.turns as Turn[]) ?? [],
+        at: new Date(r.finished_at).getTime(),
+        places,
+      };
+    }),
   );
 }

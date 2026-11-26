@@ -9,6 +9,22 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-26-2",
+    date: "26 listopada",
+    items: [
+      {
+        icon: "🏆",
+        title: "Osiągnięcia",
+        text: "75 osiągnięć do zdobycia. Nowe wyskakuje w dymku w trakcie gry (także na Twoim telefonie w podglądzie), a po grze widać je pod wynikami.",
+      },
+      {
+        icon: "🗂️",
+        title: "Galeria osiągnięć",
+        text: "Na karcie gracza (dotknij gracza w rankingu) jest kafelek „Osiągnięcia”. W środku zdobyte i te do zdobycia, z postępem. Za dotychczasowe gry już coś na Ciebie czeka!",
+      },
+    ],
+  },
+  {
     id: "2026-11-26",
     date: "26 listopada",
     items: [
