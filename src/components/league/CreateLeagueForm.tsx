@@ -5,6 +5,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Field, FormError } from "@/components/ui/Field";
 import { api } from "@/lib/api";
+import type { LookKey } from "@/lib/looks";
+import { LookSection } from "./JoinLeague";
 import { useLeague } from "./LeagueProvider";
 
 export function CreateLeagueForm() {
@@ -12,6 +14,7 @@ export function CreateLeagueForm() {
   const { state, refresh } = useLeague();
   const [leagueName, setLeagueName] = useState("");
   const [playerName, setPlayerName] = useState("");
+  const [look, setLook] = useState<LookKey>("color:0");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const current = state.status === "ready" ? state.data.me : null;
@@ -21,7 +24,7 @@ export function CreateLeagueForm() {
     setBusy(true);
     setError(null);
     try {
-      await api("/api/leagues", { body: { leagueName, playerName } });
+      await api("/api/leagues", { body: { leagueName, playerName, look } });
       await refresh();
       router.push("/liga");
     } catch (err) {
@@ -47,6 +50,7 @@ export function CreateLeagueForm() {
         maxLength={20}
         onChange={(e) => setPlayerName(e.target.value)}
       />
+      <LookSection value={look} taken={[]} onChange={setLook} />
       <p className="text-sm text-muted">
         Zostaniesz organizatorem ligi. Potem dostaniesz link i kod QR, które wyślesz znajomym.
       </p>

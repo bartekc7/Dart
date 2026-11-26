@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useInactiveIds, usePlayerColors } from "@/components/league/LeagueProvider";
+import { useInactiveIds, usePlayerColors, usePlayerIcons } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import type { RankingRow } from "@/lib/game/history";
 
@@ -11,6 +11,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 /** Ranking graczy ligi z ostatnich gier. */
 export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: number; myId?: string }) {
   const colorOf = usePlayerColors();
+  const iconOf = usePlayerIcons();
   const inactive = useInactiveIds();
   const router = useRouter();
   if (rows.length === 0) {
@@ -57,7 +58,7 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
                 </td>
                 <td className="py-2 pl-2">
                   <span className="flex min-w-0 items-center gap-1.5">
-                    <PlayerDot color={colorOf(r.id)} />
+                    <PlayerDot color={colorOf(r.id)} icon={iconOf(r.id)} />
                     {r.id ? (
                       <Link
                         href={`/gracz/${r.id}`}

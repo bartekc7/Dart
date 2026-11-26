@@ -21,6 +21,8 @@ export interface StatsMember {
   id: string;
   name: string;
   color: number;
+  /** Ikonka zamiast koloru (lib/looks). */
+  icon?: string | null;
 }
 
 export interface PlayerSummary extends StatsMember {

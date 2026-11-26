@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
   return handle(async (db) => {
     const body = await readJson(req);
     const { token } = ensureDeviceToken(req);
-    await createLeague(db, token, body.leagueName, body.playerName);
+    await createLeague(db, token, body.leagueName, body.playerName, body.look);
     return withDeviceCookie(NextResponse.json({ ok: true }), token);
   });
 }

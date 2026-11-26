@@ -1,6 +1,6 @@
 "use client";
 
-import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { usePlayerColors, usePlayerIcons } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import type { GameState } from "@/lib/game/types";
 import { AchBadge } from "./AchBadge";
@@ -10,6 +10,7 @@ import { useGameAchievements } from "./useAchievements";
 export function GameAchievements({ game, myId }: { game: GameState; myId?: string }) {
   const earned = useGameAchievements(game);
   const colorOf = usePlayerColors();
+  const iconOf = usePlayerIcons();
   if (!earned) return null;
   const rows = game.players.flatMap((p) => (earned[p.id] ?? []).map((a) => ({ p, a })));
   if (!rows.length) return null;
@@ -24,7 +25,7 @@ export function GameAchievements({ game, myId }: { game: GameState; myId?: strin
             <AchBadge a={a} />
             <span className="min-w-0 flex-1 leading-tight">
               <span className="flex items-center gap-1.5 text-sm font-medium">
-                <PlayerDot color={colorOf(p.id)} />
+                <PlayerDot color={colorOf(p.id)} icon={iconOf(p.id)} />
                 <span className="truncate">{p.name}</span>
                 {p.id === myId && <span className="text-muted">(Ty)</span>}
               </span>

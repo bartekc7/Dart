@@ -4,11 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, FormError } from "@/components/ui/Field";
+import { LookPicker } from "@/components/ui/LookPicker";
 import { api } from "@/lib/api";
+import { suggestedLook, type LookKey } from "@/lib/looks";
 import { useLeague } from "./LeagueProvider";
 import { Loading } from "./StatusScreens";
 
-type Invite = { leagueName: string; memberName: string | null; otherLeague: string | null };
+type Invite = { leagueName: string; memberName: string | null; otherLeague: string | null; taken?: LookKey[] };
 
 export function JoinLeague({ code }: { code: string }) {
   const router = useRouter();
@@ -16,6 +18,8 @@ export function JoinLeague({ code }: { code: string }) {
   const [invite, setInvite] = useState<Invite | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [name, setName] = useState("");
+  /** Wybrany znak; null = bez zmian, czyli domyślny (pierwszy wolny kolor). */
+  const [look, setLook] = useState<LookKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -30,7 +34,7 @@ export function JoinLeague({ code }: { code: string }) {
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/join/${encodeURIComponent(code)}`, { body: { name } });
+      await api(`/api/join/${encodeURIComponent(code)}`, { body: look ? { name, look } : { name } });
       await refresh();
       router.push("/");
     } catch (err) {
@@ -78,6 +82,14 @@ export function JoinLeague({ code }: { code: string }) {
         Tak zobaczą Cię inni w rankingu. Ten telefon zapamięta ligę, więc następnym razem otworzy
         się sama.
       </p>
+      <LookSection
+        value={look ?? suggestedLook(invite.taken ?? [])}
+        taken={invite.taken ?? []}
+        onChange={(k) => {
+          setLook(k);
+          setError(null);
+        }}
+      />
       {invite.otherLeague && (
         <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm text-muted">
           Ten telefon jest teraz w lidze „{invite.otherLeague}”. Dołączenie przeniesie go do nowej
@@ -112,5 +124,26 @@ export function Message({
       </section>
       <div className="flex flex-col gap-3">{children}</div>
     </div>
+  );
+}
+
+/** „Twój kolor albo ikonka” przy zakładaniu gracza (zajęte są wyszarzone). */
+export function LookSection({
+  value,
+  taken,
+  onChange,
+}: {
+  value: LookKey;
+  taken: LookKey[];
+  onChange: (k: LookKey) => void;
+}) {
+  return (
+    <section aria-labelledby="look-title" className="flex flex-col gap-2">
+      <h2 id="look-title" className="text-sm font-semibold uppercase tracking-wider text-muted">
+        Twój kolor albo ikonka
+      </h2>
+      <LookPicker value={value} taken={taken} onChange={onChange} />
+      <p className="text-xs text-muted">Zmienisz później w Opcjach (⚙️).</p>
+    </section>
   );
 }

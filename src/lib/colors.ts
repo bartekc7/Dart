@@ -1,6 +1,6 @@
 /**
- * Kolory graczy. Każdy gracz ligi ma stały kolor według kolejności
- * dołączenia (po wyczerpaniu palety kolory się powtarzają). Odcienie są
+ * Kolory graczy. Gracz wybiera kolor albo ikonkę (lib/looks); bez wyboru
+ * dostaje kolor według kolejności dołączenia (pierwszy wolny). Odcienie są
  * na tyle ciemne, że biały tekst na nich jest czytelny w obu motywach.
  */
 export const PLAYER_COLORS = [
@@ -16,7 +16,12 @@ export const PLAYER_COLORS = [
   "#0891b2", // turkusowy
 ] as const;
 
+/** Tło i obwódka gracza z ikonką (ikonka zastępuje kolor, więc akcent jest neutralny). */
+export const ICON_ACCENT = "#475569";
+
+/** Kolor gracza po numerze; -1 = gracz z ikonką (neutralny akcent). */
 export function playerColor(index: number | undefined): string {
+  if (index === -1) return ICON_ACCENT;
   if (index === undefined || !Number.isInteger(index) || index < 0) return PLAYER_COLORS[0];
   return PLAYER_COLORS[index % PLAYER_COLORS.length];
 }

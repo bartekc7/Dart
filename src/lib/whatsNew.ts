@@ -9,6 +9,17 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-26-4",
+    date: "26 listopada",
+    items: [
+      {
+        icon: "🦆",
+        title: "Kolor albo ikonka gracza",
+        text: "Wybierz swój kolor albo jedną z 30 ikonek (🐛 ☕ 🤖 💾 🔥…). Ikonka pokazuje się wszędzie zamiast kolorowej kropki. Każdy znak może mieć w lidze tylko jedna osoba. Zmienisz go w Opcjach (⚙️) › Twoja nazwa i znak.",
+      },
+    ],
+  },
+  {
     id: "2026-11-26-3",
     date: "26 listopada",
     items: [

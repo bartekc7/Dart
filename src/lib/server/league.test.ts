@@ -35,6 +35,8 @@ import {
   setEntryMode,
   whoAmI,
   leagueAchievements,
+  setMemberLook,
+  takenLooks,
 } from "./league";
 
 /**
@@ -461,5 +463,48 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(await myTrainings(db, me)).toHaveLength(1);
     await deleteTraining(db, me, "tr1");
     expect(await myTrainings(db, me)).toEqual([]);
+  });
+
+  it("kolor albo ikonka: wybór przy dołączaniu, unikalne w lidze, zmiana później", async () => {
+    const org = newDeviceToken();
+    await createLeague(db, org, "Znaki", "Ola", "icon:☕");
+    const me = await requireMe(db, org);
+    expect(me.member).toMatchObject({ icon: "☕", color: -1 });
+    const code = me.league.joinCode;
+
+    // Bez wyboru: pierwszy wolny kolor wg kolejności (Ola ma ikonkę, więc kolor 1 jest wolny).
+    const kubaToken = newDeviceToken();
+    await joinLeague(db, kubaToken, code, "Kuba");
+    expect((await requireMe(db, kubaToken)).member).toMatchObject({ color: 1, icon: null });
+
+    await expect(joinLeague(db, newDeviceToken(), code, "Ewa", "icon:☕")).rejects.toThrow(/ikonkę ma już/);
+    await expect(joinLeague(db, newDeviceToken(), code, "Ewa", "color:1")).rejects.toThrow(/kolor ma już/);
+    await expect(joinLeague(db, newDeviceToken(), code, "Ewa", "icon:🍎")).rejects.toThrow(/Nieznany/);
+    const ewa = await addMember(db, me, "Ewa", "icon:🐛");
+    expect(ewa).toMatchObject({ icon: "🐛", color: -1 });
+    expect((await takenLooks(db, me.league.id)).sort()).toEqual(["color:1", "icon:☕", "icon:🐛"].sort());
+
+    // Zmiana później: swój znak każdy, cudzy tylko organizator; zajęty odrzucany.
+    const kuba = await requireMe(db, kubaToken);
+    await expect(setMemberLook(db, kuba, kuba.member.id, "icon:🐛")).rejects.toThrow(/ikonkę ma już/);
+    expect(await setMemberLook(db, kuba, kuba.member.id, "icon:🦆")).toMatchObject({ icon: "🦆", color: -1 });
+    await expect(setMemberLook(db, kuba, ewa.id, "color:5")).rejects.toThrow(/organizator/);
+    expect(await setMemberLook(db, me, ewa.id, "color:5")).toMatchObject({ icon: null, color: 5 });
+    expect(await setMemberLook(db, me, me.member.id, "color:1")).toMatchObject({ icon: null, color: 1 });
+  });
+
+  it("migracja: obecni gracze dostają na stałe dotychczasowy kolor", async () => {
+    const t = newDeviceToken();
+    await createLeague(db, t, "Stara", "A");
+    const me = await requireMe(db, t);
+    await addMember(db, me, "B");
+    await addMember(db, me, "C");
+    // Jak przed zmianą: brak zapisanego znaku.
+    await db.query("update members set color_idx = null, icon = null where league_id = $1", [me.league.id]);
+    const before = (await listMembers(db, me.league.id)).map((m) => [m.name, m.color]);
+    await ensureSchema(db);
+    const { rows } = await db.query("select name, color_idx from members where league_id = $1 order by name", [me.league.id]);
+    expect(rows.map((r) => [r.name, r.color_idx])).toEqual([...before].sort());
+    expect((await listMembers(db, me.league.id)).map((m) => [m.name, m.color])).toEqual(before);
   });
 });

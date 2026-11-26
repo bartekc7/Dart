@@ -104,6 +104,13 @@ create table if not exists trainings (
   started_at timestamptz,
   finished_at timestamptz not null default now()
 );
+-- Znak gracza: kolor (numer z lib/colors) albo ikonka. Obecni gracze dostają
+-- na stałe kolor, który mieli dotąd (wg kolejności dołączenia) – wygląd się nie zmienia.
+alter table members add column if not exists color_idx integer;
+alter table members add column if not exists icon text;
+update members m set color_idx = (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id)) % 10
+ where m.color_idx is null and m.icon is null;
+create unique index if not exists members_league_icon on members (league_id, icon) where icon is not null;
 create index if not exists trainings_member on trainings (member_id, finished_at desc);
 `;
 

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/Field";
+import { PlayerDot } from "@/components/ui/PlayerDot";
+import { playerColor } from "@/lib/colors";
 import { api } from "@/lib/api";
 import type { Member } from "@/lib/server/league";
 import { AddMemberForm } from "./AddMemberForm";
@@ -127,6 +129,7 @@ function MemberRow({
 }) {
   const label = (
     <>
+      <PlayerDot color={playerColor(member.color)} icon={member.icon} />
       <span className="min-w-0 flex-1 truncate text-lg font-medium">
         {member.name}
         {isMe && <span className="text-muted"> (Ty)</span>}
@@ -221,7 +224,7 @@ function MemberActions({ member, self }: { member: Member; self: boolean }) {
         <RenameForm member={member} onDone={() => setRenaming(false)} />
       ) : (
         <Button variant="secondary" onClick={() => setRenaming(true)}>
-          ✏️ Zmień nazwę
+          ✏️ Zmień nazwę, kolor lub ikonkę
         </Button>
       )}
       {claimUrl ? (

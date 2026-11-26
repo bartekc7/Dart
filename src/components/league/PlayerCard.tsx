@@ -50,7 +50,7 @@ export function PlayerCard({ id }: { id: string }) {
         className="flex items-center gap-3 rounded-2xl bg-surface p-4 ring-1 ring-line"
         style={{ boxShadow: `inset 4px 0 0 ${color}` }}
       >
-        <PlayerDot color={color} big />
+        <PlayerDot color={color} icon={stats.icon} big />
         <h2 className="min-w-0 flex-1 truncate text-2xl font-bold">{stats.name}</h2>
         {!stats.active && (
           <span className="shrink-0 rounded-full bg-surface-2 px-2 text-xs font-semibold text-muted ring-1 ring-line">

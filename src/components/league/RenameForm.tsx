@@ -2,26 +2,36 @@
 
 import { useState } from "react";
 import { FormError } from "@/components/ui/Field";
+import { LookPicker } from "@/components/ui/LookPicker";
 import { api } from "@/lib/api";
+import { lookKey, looksOf } from "@/lib/looks";
 import type { Member } from "@/lib/server/league";
 import { useLeague } from "./LeagueProvider";
 
-/** Zmiana nazwy gracza: pole z obecną nazwą, Zapisz i Anuluj. */
+/** Zmiana nazwy i znaku gracza (kolor albo ikonka): Zapisz i Anuluj. */
 export function RenameForm({ member, onDone }: { member: Member; onDone: () => void }) {
-  const { refresh } = useLeague();
+  const { state, refresh } = useLeague();
+  const all = state.status === "ready" ? [...state.data.members, ...state.data.inactive] : [];
+  const taken = looksOf(all, member.id);
+  const startLook = lookKey(member);
+  const [look, setLook] = useState(startLook);
   const [name, setName] = useState(member.name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trimmed = name.trim().replace(/\s+/g, " ");
-  const unchanged = trimmed === member.name;
+  const sameName = trimmed === member.name;
+  const sameLook = look === startLook;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!trimmed || unchanged) return onDone();
+    if (!trimmed || (sameName && sameLook)) return onDone();
     setBusy(true);
     setError(null);
     try {
-      await api(`/api/members/${member.id}`, { method: "PATCH", body: { name: trimmed } });
+      await api(`/api/members/${member.id}`, {
+        method: "PATCH",
+        body: { ...(sameName ? {} : { name: trimmed }), ...(sameLook ? {} : { look }) },
+      });
       await refresh();
       onDone();
     } catch (err) {
@@ -38,11 +48,19 @@ export function RenameForm({ member, onDone }: { member: Member; onDone: () => v
           setName(e.target.value.slice(0, 20));
           setError(null);
         }}
-        autoFocus
-        aria-label="Nowa nazwa"
+                aria-label="Nowa nazwa"
         autoComplete="off"
         enterKeyHint="done"
         className="min-h-14 w-full min-w-0 rounded-2xl bg-surface-2 px-4 text-lg ring-2 ring-cream outline-none placeholder:text-muted"
+      />
+      <p className="mt-1 text-sm font-semibold uppercase tracking-wider text-muted">Kolor albo ikonka</p>
+      <LookPicker
+        value={look}
+        taken={taken}
+        onChange={(k) => {
+          setLook(k);
+          setError(null);
+        }}
       />
       <div className="grid grid-cols-2 gap-2">
         <button

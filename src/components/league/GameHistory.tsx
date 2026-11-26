@@ -7,7 +7,7 @@ import { FormError } from "@/components/ui/Field";
 import { api } from "@/lib/api";
 import { formatDuration } from "@/lib/game/engine";
 import type { GameRecord } from "@/lib/game/history";
-import { useLeague, usePlayerColors } from "./LeagueProvider";
+import { useLeague, usePlayerColors, usePlayerIcons } from "./LeagueProvider";
 import { Loading } from "./StatusScreens";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -27,6 +27,7 @@ function when(iso: string) {
 export function GameHistory() {
   const { state, refresh } = useLeague();
   const colorOf = usePlayerColors();
+  const iconOf = usePlayerIcons();
   const organizer = state.status === "ready" && state.data.me?.member.isOrganizer === true;
   const [games, setGames] = useState<GameRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +88,7 @@ export function GameHistory() {
                   <span className="w-6 text-center">
                     {MEDALS[r.place - 1] ?? <span className="font-mono text-sm text-muted">{r.place}.</span>}
                   </span>
-                  <PlayerDot color={colorOf(r.id)} />
+                  <PlayerDot color={colorOf(r.id)} icon={iconOf(r.id)} />
                   <span className={`truncate ${r.place === 1 ? "font-semibold" : ""}`}>{r.name}</span>
                 </li>
               ))}
