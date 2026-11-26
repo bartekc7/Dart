@@ -23,6 +23,8 @@ import {
   undoLastTurn,
 } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
+import type { Achievement } from "@/lib/game/achievements";
+import { AchCount } from "@/components/achievements/AchBadge";
 import { useEntryMode, usePlayerColors } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
@@ -44,9 +46,12 @@ type Feedback = { text: string; bust: boolean } | null;
 export function PlayView({
   game,
   onChange,
+  earned,
 }: {
   game: GameState;
   onChange: (g: GameState | null) => void;
+  /** Osiągnięcia zdobyte w tej grze (licznik 🏆 przy graczu). */
+  earned?: Record<string, Achievement[]> | null;
 }) {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -219,7 +224,10 @@ export function PlayView({
             >
               <PlayerDot color={colorOf(p.id)} big={active} />
               <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                <span className={`truncate land:text-xl ${active ? "font-bold" : "font-medium"} ${place ? "text-muted" : ""}`}>{p.name}</span>
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <span className={`truncate land:text-xl ${active ? "font-bold" : "font-medium"} ${place ? "text-muted" : ""}`}>{p.name}</span>
+                  <AchCount n={earned?.[p.id]?.length} />
+                </span>
                 {place && <SinceFinish at={finishedAt(game, p.id)} now={now} />}
                 {!place && last && (
                   <span className="truncate text-xs text-muted land:text-sm">

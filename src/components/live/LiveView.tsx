@@ -15,6 +15,10 @@ import { useSeenFinished } from "@/lib/game/storage";
 import type { GameState } from "@/lib/game/types";
 import { FAST_POLL_MS, IDLE_POLL_MS, usePoll } from "@/lib/live/usePoll";
 import type { LiveGame } from "@/lib/server/league";
+import { AchievementToasts } from "@/components/achievements/AchievementToasts";
+import { GameAchievements } from "@/components/achievements/GameAchievements";
+import { useGameAchievements } from "@/components/achievements/useAchievements";
+import { AchCount } from "@/components/achievements/AchBadge";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 /** Trwająca gra: szybko; zakończona już się nie zmieni. */
@@ -74,6 +78,7 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
   const colorOf = usePlayerColors();
   const hint = player ? checkout(remainingFor(state, player.id)) : null;
   const now = useNow(finishOrder(state).length > 0);
+  const earned = useGameAchievements(state);
 
   return (
     <div className="flex flex-col gap-4">
@@ -130,6 +135,7 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
                 <span className={`truncate text-lg font-medium ${place ? "text-muted" : ""}`}>
                   {p.name}
                   {p.id === myId && <span className="font-normal text-muted"> (Ty)</span>}
+                  <span className="ml-1.5 align-middle"><AchCount n={earned?.[p.id]?.length} /></span>
                 </span>
                 {place && <SinceFinish at={finishedAt(state, p.id)} now={now} />}
               </span>
@@ -145,6 +151,7 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
         })}
       </ol>
 
+      <AchievementToasts earned={earned} nameOf={() => ""} onlyFor={myId} />
       <p className="text-center text-sm text-muted">
         Punkty wpisuje {game.scorer.name ?? "inny telefon"}. Ekran odświeża się sam.
       </p>
@@ -177,6 +184,7 @@ function Finished({ game, myId }: { game: LiveGame; myId: string }) {
       <div className="mt-6 flex flex-col gap-4">
         <FinalStandings game={game.state} myId={myId} />
         <GameStats game={game.state} />
+        <GameAchievements game={game.state} myId={myId} />
       </div>
       <div className="mt-auto pt-6">
         <Button

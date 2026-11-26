@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { formatDuration, gameDuration, rematch, standings, undoLastTurn } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
 import { FinalStandings, GameStats } from "./FinalStandings";
+import { GameAchievements } from "@/components/achievements/GameAchievements";
 
 type Save = { status: "saving" } | { status: "saved" } | { status: "error"; message: string };
 
@@ -76,6 +77,7 @@ export function ResultsView({
 
       <FinalStandings game={game} />
       <GameStats game={game} />
+      <GameAchievements game={game} />
 
       <div className="mt-auto flex flex-col gap-2 pt-2">
         <div className="grid grid-cols-2 gap-2">

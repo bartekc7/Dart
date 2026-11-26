@@ -9,6 +9,7 @@ import { useLeague } from "./LeagueProvider";
 import { HitMap } from "./HitMap";
 import { MyGames } from "./MyGames";
 import { Loading } from "./StatusScreens";
+import { AchievementsTile } from "@/components/achievements/AchievementsTile";
 
 const num = (n: number, digits = 1) => n.toFixed(digits).replace(".", ",");
 
@@ -75,6 +76,7 @@ export function PlayerCard({ id }: { id: string }) {
             ))}
           </section>
           <p className="-mt-3 text-xs text-muted">Ze wszystkich gier ligowych (bez gier w pojedynkę).</p>
+          <AchievementsTile memberId={stats.id} />
           <HitMap hits={stats.hits} games={stats.hitGames} />
           <MyGames games={stats.recent} title="Ostatnie gry" />
         </>
