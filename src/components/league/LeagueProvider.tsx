@@ -96,3 +96,10 @@ export function useInactiveIds(): Set<string> {
   const { state } = useLeague();
   return new Set(state.status === "ready" ? state.data.inactive.map((m) => m.id) : []);
 }
+
+/** Nazwa gracza ligi po id (także nieaktywnego). */
+export function useMemberName(): (id: string) => string {
+  const { state } = useLeague();
+  const members = state.status === "ready" ? [...state.data.members, ...state.data.inactive] : [];
+  return (id) => members.find((m) => m.id === id)?.name ?? "Usunięty gracz";
+}

@@ -1,6 +1,9 @@
 "use client";
 
+import { RECORD_COLOR } from "@/components/achievements/AchievementToasts";
+import { useGameRecords } from "@/components/achievements/useAchievements";
 import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { formatRecord, recordLabel, summarizeEvents } from "@/lib/game/records";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { finishTime, formatDuration, playerStats, standings } from "@/lib/game/engine";
 import type { GameState } from "@/lib/game/types";
@@ -18,6 +21,8 @@ export const fmt = (n: number) => n.toFixed(1).replace(".", ",");
 /** Klasyfikacja zakończonej gry (ekran wyników i podgląd na żywo). */
 export function FinalStandings({ game, myId }: { game: GameState; myId?: string }) {
   const colorOf = usePlayerColors();
+  const events = useGameRecords(game);
+  const records = events ? summarizeEvents(events) : [];
   return (
     <ol className="flex flex-col gap-2" aria-label="Klasyfikacja">
       {standings(game).map((s) => {
@@ -43,6 +48,15 @@ export function FinalStandings({ game, myId }: { game: GameState; myId?: string 
                 {!s.finished && ` · zostało ${s.remaining}`}
                 {s.finished && finishTime(game, s.player.id) !== null && ` · ⏱ ${formatDuration(finishTime(game, s.player.id)!)}`}
               </span>
+              {records
+                .filter((r) => r.memberId === s.player.id)
+                .map((r) => (
+                  <span key={r.key} className="block text-sm font-semibold leading-snug" style={{ color: RECORD_COLOR }}>
+                    📈 {r.scope === "league" ? "Rekord ligi" : "Rekord osobisty"}: {recordLabel(r.key).toLowerCase()}{" "}
+                    {formatRecord(r.key, r.value)}{" "}
+                    <span className="font-normal text-muted">(było {formatRecord(r.key, r.prev.value)})</span>
+                  </span>
+                ))}
             </span>
             <span className="text-right">
               <span className="block font-mono text-xl font-bold tabular-nums">{fmt(stats.average)}</span>

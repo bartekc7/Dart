@@ -6,7 +6,7 @@ import { useLeague } from "@/components/league/LeagueProvider";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { isGameOver } from "@/lib/game/engine";
 import { removeLive } from "@/lib/live/publish";
-import { useStoredGame } from "@/lib/game/storage";
+import { useStoredGame, useStoredTraining } from "@/lib/game/storage";
 
 export function HomeActions() {
   const [game, setGame] = useStoredGame();
@@ -28,14 +28,17 @@ export function HomeActions() {
   if (!inProgress || stale) {
     // Zakończona gra zostaje w telefonie (wyniki, cofnięcie), ale „Nowa gra” zaczyna od zera.
     return (
-      <Button
-        onClick={() => {
-          if (game) setGame(null);
-          router.push("/gra");
-        }}
-      >
-        Nowa gra
-      </Button>
+      <>
+        <Button
+          onClick={() => {
+            if (game) setGame(null);
+            router.push("/gra");
+          }}
+        >
+          Nowa gra
+        </Button>
+        <TrainingButton />
+      </>
     );
   }
 
@@ -68,5 +71,15 @@ export function HomeActions() {
         </Button>
       )}
     </>
+  );
+}
+
+/** Wejście do treningów solo: mniejsze i obrysowane, żeby nie konkurowało z grą ligową. */
+function TrainingButton() {
+  const [training] = useStoredTraining();
+  return (
+    <ButtonLink href="/trening" variant="secondary" className="min-h-12 text-base">
+      🎯 {training ? "Wróć do treningu" : "Trening solo"}
+    </ButtonLink>
   );
 }

@@ -4,17 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { addGame, emptyProgress, newlyUnlocked, type Achievement, type AchGame, type AchProgress } from "@/lib/game/achievements";
 import { gameEnd, isGameOver, standings } from "@/lib/game/engine";
+import { addRecordsGame, emptyRecords, type RecordEvent, type RecordsState } from "@/lib/game/records";
 import type { GameState } from "@/lib/game/types";
 
 type Progress = Record<string, AchProgress>;
+type League = { members: Progress; records: RecordsState };
 
 /** Postęp sprzed trwającej gry nie zmienia się w trakcie, więc pobieramy go raz na grę. */
-const beforeGame = new Map<string, Promise<Progress>>();
+const beforeGame = new Map<string, Promise<League>>();
 
-function load(exclude: string | null): Promise<Progress> {
+function load(exclude: string | null): Promise<League> {
   const fetchIt = () =>
-    api<{ members: Progress }>(`/api/achievements${exclude ? `?exclude=${encodeURIComponent(exclude)}` : ""}`).then(
-      (r) => r.members,
+    api<Partial<League>>(`/api/achievements${exclude ? `?exclude=${encodeURIComponent(exclude)}` : ""}`).then(
+      (r) => ({ members: r.members ?? {}, records: r.records ?? emptyRecords() }),
     );
   if (!exclude) return fetchIt();
   let p = beforeGame.get(exclude);
@@ -27,11 +29,11 @@ function load(exclude: string | null): Promise<Progress> {
 }
 
 /**
- * Osiągnięcia graczy ligi. `exclude` = id trwającej gry: dostajemy stan sprzed niej.
+ * Osiągnięcia i rekordy graczy ligi. `exclude` = id trwającej gry: dostajemy stan sprzed niej.
  * null, dopóki się nie wczytają (albo gdy nie ma połączenia – wtedy po prostu ich nie pokazujemy).
  */
-export function useLeagueAchievements(exclude: string | null, enabled = true): Progress | null {
-  const [data, setData] = useState<{ key: string; value: Progress } | null>(null);
+function useLeagueData(exclude: string | null, enabled = true): League | null {
+  const [data, setData] = useState<{ key: string; value: League } | null>(null);
   const key = exclude ?? "";
   useEffect(() => {
     if (!enabled) return;
@@ -44,6 +46,23 @@ export function useLeagueAchievements(exclude: string | null, enabled = true): P
     };
   }, [exclude, key, enabled]);
   return data?.key === key ? data.value : null;
+}
+
+/** Osiągnięcia graczy ligi (zob. useLeagueData). */
+export function useLeagueAchievements(exclude: string | null, enabled = true): Progress | null {
+  return useLeagueData(exclude, enabled)?.members ?? null;
+}
+
+/** Rekordy ligi i graczy z całej historii. */
+export function useLeagueRecords(): RecordsState | null {
+  return useLeagueData(null)?.records ?? null;
+}
+
+/** Nowe rekordy pobite w tej grze, w kolejności serii (null = jeszcze nie wiadomo). */
+export function useGameRecords(game: GameState | null | undefined): RecordEvent[] | null {
+  const id = game?.id ?? null;
+  const base = useLeagueData(id, !!id && (game?.players.length ?? 0) > 1)?.records ?? null;
+  return useMemo(() => (game && base ? addRecordsGame(base, toAchGame(game)).events : null), [game, base]);
 }
 
 /** Gra z telefonu w postaci do liczenia osiągnięć. */

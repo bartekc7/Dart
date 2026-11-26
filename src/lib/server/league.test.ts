@@ -2,6 +2,8 @@ import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ensureSchema } from "./db";
 import { restoreRemovedResults } from "./repair";
+import { deleteTraining, myTrainings, saveTraining } from "./training";
+import { startTraining, type AimHit } from "../training";
 import {
   addMember,
   claimDevice,
@@ -348,11 +350,13 @@ describe.skipIf(!url)("liga w bazie", () => {
     const players = [me.member.id, kuba.id];
     await saveGame(db, me, { id: "os1", target: 101, players, turns: [60, 20, 41].map((x) => ({ scored: x })) });
     await saveGame(db, me, { id: "os2", target: 101, players, turns: [101].map((x) => ({ scored: x })) });
-    const all = await leagueAchievements(db, me.league.id);
+    const { members: all, records } = await leagueAchievements(db, me.league.id);
+    expect(records.personal[me.member.id].series).toMatchObject({ value: 101 });
+    expect(records.league["fastest:101"]).toMatchObject({ memberId: me.member.id, value: 1 });
     expect(all[me.member.id]).toMatchObject({ games: 2, wins: 2, winStreak: 2, points: 202 });
     expect(Object.keys(all[me.member.id].unlocked).map(Number)).toEqual(expect.arrayContaining([3, 9, 10, 17, 22, 30, 49]));
     expect(all[kuba.id].unlocked[4]).toMatchObject({ gameId: "os1" });
-    const without = await leagueAchievements(db, me.league.id, "os2");
+    const { members: without } = await leagueAchievements(db, me.league.id, "os2");
     expect(without[me.member.id]).toMatchObject({ games: 1, wins: 1 });
     expect(without[me.member.id].unlocked[10]).toBeUndefined();
   });
@@ -425,5 +429,37 @@ describe.skipIf(!url)("liga w bazie", () => {
     await expect(
       saveGame(db, me, { id: "nz2", target: 101, players: [me.member.id, zenek.id], turns }),
     ).rejects.toThrow(/spoza ligi/);
+  });
+
+  it("treningi solo: zapis z przeliczeniem wyniku, tylko własne, osobno od gier", async () => {
+    const org = newDeviceToken();
+    await createLeague(db, org, "Treningi", "Ola");
+    const me = await requireMe(db, org);
+    const kubaToken = newDeviceToken();
+    await joinLeague(db, kubaToken, (await requireMe(db, org)).league.joinCode, "Kuba");
+    const kuba = await requireMe(db, kubaToken);
+
+    const aim = { ...startTraining("aim", "20"), darts: Array.from({ length: 30 }, (_, i): AimHit => (i < 12 ? "T" : "0")) };
+    await saveTraining(db, me, { id: "tr1", data: { ...aim, score: 999 } });
+    await saveTraining(db, me, { id: "tr1", data: aim }); // ponowny zapis nie dubluje
+    const mine = await myTrainings(db, me);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ id: "tr1", mode: "aim", variant: "20", score: 40 });
+    expect(await myTrainings(db, kuba)).toEqual([]);
+    await expect(saveTraining(db, kuba, { id: "tr1", data: aim })).rejects.toThrow(/Nie można/);
+
+    await expect(saveTraining(db, me, { id: "tr2", data: startTraining("clock") })).rejects.toThrow(/nie jest zakończony/);
+    await expect(
+      saveTraining(db, me, { id: "tr3", data: { ...startTraining("aim", "25"), darts: Array(30).fill("T") } }),
+    ).rejects.toThrow(/rzutka/);
+
+    // Treningi nie są grami: ranking, statystyki i osiągnięcia ligi ich nie widzą.
+    expect((await leagueStats(db, me.league.id)).games).toBe(0);
+    expect((await leagueAchievements(db, me.league.id)).members).toEqual({});
+
+    await deleteTraining(db, kuba, "tr1"); // cudzego nie usunie
+    expect(await myTrainings(db, me)).toHaveLength(1);
+    await deleteTraining(db, me, "tr1");
+    expect(await myTrainings(db, me)).toEqual([]);
   });
 });

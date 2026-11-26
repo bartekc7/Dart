@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import { isGameState } from "./engine";
 import { applyTheme, isTheme, THEME_KEY, type Theme } from "../theme";
 import type { GameState } from "./types";
+import type { TrainingState } from "../training";
 
 /**
  * Bieżąca gra trzymana w localStorage telefonu, żeby odświeżenie strony
@@ -66,6 +67,16 @@ export function useStoredGame(): [GameState | null | undefined, (v: GameState | 
   const game = raw === undefined ? undefined : isGameState(raw) ? raw : null;
   return [game, set as (v: GameState | null) => void];
 }
+/** Trwający trening solo (ten telefon). */
+export interface StoredTraining {
+  id: string;
+  state: TrainingState;
+}
+export const useStoredTraining = () => useStored<StoredTraining>("dart:training");
+
+/** Tryby treningu, których zasady ktoś już widział (przy pierwszym razie pokazujemy je same). */
+export const useSeenTrainingHelp = () => useStored<string[]>("dart:trainingHelpSeen");
+
 /** Gracze ligi (id) z ostatniej gry na tym telefonie, w kolejności rzucania. */
 export const useLastPlayerIds = () => useStored<string[]>(PLAYERS_KEY);
 

@@ -92,6 +92,19 @@ alter table members add column if not exists active boolean not null default tru
 -- Czas gry: pierwsza rzutka i ostatnia seria (starsze gry: null).
 alter table games add column if not exists started_at timestamptz;
 alter table games add column if not exists ended_at timestamptz;
+-- Treningi solo: osobno od gier ligowych (nie trafiają do rankingu, statystyk ligi ani osiągnięć).
+create table if not exists trainings (
+  id text primary key,
+  league_id text not null references leagues(id) on delete cascade,
+  member_id text not null references members(id) on delete cascade,
+  mode text not null,
+  variant text not null default '',
+  score real not null,
+  data jsonb not null,
+  started_at timestamptz,
+  finished_at timestamptz not null default now()
+);
+create index if not exists trainings_member on trainings (member_id, finished_at desc);
 `;
 
 export async function ensureSchema(db: Db) {

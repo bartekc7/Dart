@@ -9,6 +9,22 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-26-3",
+    date: "26 listopada",
+    items: [
+      {
+        icon: "📈",
+        title: "Rekordy",
+        text: "Pobijesz swoją najlepszą serię, najszybszą wygraną albo średnią w meczu? Wyskoczy złoty dymek. Rekord całej ligi zobaczą wszyscy w podglądzie. Twoje rekordy są na karcie gracza.",
+      },
+      {
+        icon: "🎯",
+        title: "Trening solo",
+        text: "Nowy przycisk pod „Nowa gra”: Celowanie, Dookoła tarczy i Kończenie. Treningi widzisz tylko Ty i nie liczą się do rankingu, statystyk ligi ani osiągnięć.",
+      },
+    ],
+  },
+  {
     id: "2026-11-26-2",
     date: "26 listopada",
     items: [
