@@ -2,7 +2,7 @@
 
 import { RECORD_COLOR } from "@/components/achievements/AchievementToasts";
 import { useGameRecords } from "@/components/achievements/useAchievements";
-import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { usePlayerColors, usePlayerIcons } from "@/components/league/LeagueProvider";
 import { formatRecord, recordLabel, summarizeEvents } from "@/lib/game/records";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { finishTime, formatDuration, playerStats, standings } from "@/lib/game/engine";
@@ -21,6 +21,7 @@ export const fmt = (n: number) => n.toFixed(1).replace(".", ",");
 /** Klasyfikacja zakończonej gry (ekran wyników i podgląd na żywo). */
 export function FinalStandings({ game, myId }: { game: GameState; myId?: string }) {
   const colorOf = usePlayerColors();
+  const iconOf = usePlayerIcons();
   const events = useGameRecords(game);
   const records = events ? summarizeEvents(events) : [];
   return (
@@ -39,7 +40,7 @@ export function FinalStandings({ game, myId }: { game: GameState; myId?: string 
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 items-center gap-2 text-lg font-semibold">
-                <PlayerDot color={colorOf(s.player.id)} />
+                <PlayerDot color={colorOf(s.player.id)} icon={iconOf(s.player.id)} />
                 <span className="truncate">{s.player.name}</span>
                 {s.player.id === myId && <span className="shrink-0 font-normal text-muted">(Ty)</span>}
               </span>

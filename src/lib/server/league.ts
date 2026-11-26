@@ -6,6 +6,7 @@ import { computeProgress, type AchGame, type AchProgress } from "../game/achieve
 import { computeRecords, type RecordsState } from "../game/records";
 import type { EntryMode, GameState, Turn } from "../game/types";
 import type { Db } from "./db";
+import { defaultLook, lookKey, parseLook, type Look, type LookKey } from "../looks";
 
 /** Błąd, który pokazujemy użytkownikowi wprost (z kodem HTTP). */
 export class UserError extends Error {
@@ -22,8 +23,10 @@ export interface Member {
   name: string;
   isOrganizer: boolean;
   hasDevice: boolean;
-  /** Numer koloru gracza w lidze (kolejność dołączenia), patrz lib/colors. */
+  /** Numer koloru gracza (lib/colors); -1 gdy gracz wybrał ikonkę. */
   color: number;
+  /** Ikonka gracza (lib/looks) zamiast koloru albo null. */
+  icon: string | null;
   /** Nieaktywny = usunięty gracz z grami: zostaje ze starą nazwą, ale nie da się go wybrać do gry. */
   active: boolean;
 }
@@ -78,15 +81,56 @@ function isUniqueViolation(e: unknown) {
   return (e as { code?: string })?.code === "23505";
 }
 
-async function insertMember(db: Db, leagueId: string, name: string, organizer = false) {
+/** Znaki (kolory i ikonki) zajęte w lidze, także przez nieaktywnych graczy. */
+export async function takenLooks(db: Db, leagueId: string, exceptId?: string): Promise<LookKey[]> {
+  const { rows } = await db.query(
+    `select m.color_idx, m.icon, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as rank
+       from members m where m.league_id = $1 and m.id <> coalesce($2, '')`,
+    [leagueId, exceptId ?? null],
+  );
+  return rows.map((r) => lookKey({ color: r.color_idx ?? r.rank, icon: r.icon }));
+}
+
+/** Wybrany znak (np. „icon:🐛”) albo domyślny, gdy gracz nic nie wybrał. */
+async function resolveLook(db: Db, leagueId: string, raw: unknown, exceptId?: string): Promise<Look> {
+  const taken = await takenLooks(db, leagueId, exceptId);
+  if (raw === undefined || raw === null || raw === "") {
+    const { rows } = await db.query("select count(*)::int as n from members where league_id = $1", [leagueId]);
+    return defaultLook(rows[0].n, taken);
+  }
+  const look = parseLook(raw);
+  if (!look) throw new UserError("Nieznany kolor albo ikonka.");
+  if (taken.includes(lookKey(look))) throw takenLook(look);
+  return look;
+}
+
+/** Wybrany kolor/ikonka jest zajęty (inny błąd niż zajęta nazwa). */
+class LookTakenError extends UserError {}
+
+function takenLook(look: Look) {
+  return new LookTakenError(
+    look.icon ? "Tę ikonkę ma już inny gracz. Wybierz inną." : "Ten kolor ma już inny gracz. Wybierz inny.",
+    409,
+  );
+}
+
+async function insertMember(db: Db, leagueId: string, name: string, organizer = false, rawLook?: unknown) {
   const id = randomUUID();
   try {
+    const { rows } = await db.query(
+      "select 1 from members where league_id = $1 and lower(name) = lower($2)",
+      [leagueId, name],
+    );
+    // Powracający nieaktywny gracz zachowuje swój znak (niżej), więc wybór sprawdzamy tylko dla nowych.
+    const look = rows[0] ? { color: 0, icon: null } : await resolveLook(db, leagueId, rawLook);
     await db.query(
-      "insert into members (id, league_id, name, is_organizer) values ($1, $2, $3, $4)",
-      [id, leagueId, name, organizer],
+      "insert into members (id, league_id, name, is_organizer, color_idx, icon) values ($1, $2, $3, $4, $5, $6)",
+      [id, leagueId, name, organizer, look.color, look.icon],
     );
   } catch (e) {
     if (!isUniqueViolation(e)) throw e;
+    if ((e as { constraint?: string }).constraint === "members_league_icon")
+      throw takenLook({ color: null, icon: "?" });
     // Ta sama nazwa co usunięty gracz z grami: przywracamy go razem z jego wynikami.
     const { rows } = await db.query(
       "update members set active = true where league_id = $1 and lower(name) = lower($2) and not active returning id",
@@ -107,7 +151,7 @@ async function bindDevice(db: Db, token: string, memberId: string) {
 }
 
 /** Zakłada ligę; zakładający zostaje organizatorem i jest przypisany do tego urządzenia. */
-export async function createLeague(db: Db, token: string, leagueName: unknown, playerName: unknown) {
+export async function createLeague(db: Db, token: string, leagueName: unknown, playerName: unknown, look?: unknown) {
   const name = cleanName(leagueName, MAX_LEAGUE_NAME);
   const player = cleanName(playerName);
   const id = randomUUID();
@@ -123,7 +167,7 @@ export async function createLeague(db: Db, token: string, leagueName: unknown, p
       if (!isUniqueViolation(e) || attempt > 3) throw e;
     }
   }
-  const memberId = await insertMember(db, id, player, true);
+  const memberId = await insertMember(db, id, player, true, look);
   await bindDevice(db, token, memberId);
 }
 
@@ -131,7 +175,7 @@ export async function createLeague(db: Db, token: string, leagueName: unknown, p
 export async function whoAmI(db: Db, token: string | undefined): Promise<Me | null> {
   if (!token) return null;
   const { rows } = await db.query(
-    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, l.id as league_id, l.name as league_name, l.join_code, l.entry_mode, l.recovery_hash is not null as has_recovery
+    `select m.id, m.name, m.is_organizer, case when m.icon is not null then -1 else coalesce(m.color_idx, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int) end as color, m.icon, l.id as league_id, l.name as league_name, l.join_code, l.entry_mode, l.recovery_hash is not null as has_recovery
        from devices d join members m on m.id = d.member_id join leagues l on l.id = m.league_id
       where d.token_hash = $1 and m.active`,
     [hashToken(token)],
@@ -141,7 +185,7 @@ export async function whoAmI(db: Db, token: string | undefined): Promise<Me | nu
   await db.query("update devices set last_seen = now() where token_hash = $1", [hashToken(token)]);
   return {
     league: { id: r.league_id, name: r.league_name, joinCode: r.join_code, entryMode: toEntryMode(r.entry_mode), hasRecoveryCode: r.has_recovery },
-    member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true, color: r.color, active: true },
+    member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true, color: r.color, icon: r.icon ?? null, active: true },
   };
 }
 
@@ -158,7 +202,7 @@ function requireOrganizer(me: Me) {
 /** Aktywni gracze ligi; `withInactive` dokłada też usuniętych, którzy mają gry (np. do karty gracza). */
 export async function listMembers(db: Db, leagueId: string, withInactive = false): Promise<Member[]> {
   const { rows } = await db.query(
-    `select m.id, m.name, m.is_organizer, m.active, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, exists (select 1 from devices d where d.member_id = m.id) as has_device
+    `select m.id, m.name, m.is_organizer, m.active, case when m.icon is not null then -1 else coalesce(m.color_idx, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int) end as color, m.icon, exists (select 1 from devices d where d.member_id = m.id) as has_device
        from members m where m.league_id = $1 and (m.active or $2) order by m.active desc, m.is_organizer desc, lower(m.name)`,
     [leagueId, withInactive],
   );
@@ -168,6 +212,7 @@ export async function listMembers(db: Db, leagueId: string, withInactive = false
     isOrganizer: r.is_organizer,
     hasDevice: r.has_device,
     color: r.color,
+    icon: r.icon ?? null,
     active: r.active,
   }));
 }
@@ -201,6 +246,30 @@ export async function renameMember(db: Db, me: Me, memberId: string, rawName: un
   return (await listMembers(db, me.league.id)).find((m) => m.id === memberId)!;
 }
 
+/**
+ * Zmiana znaku (kolor albo ikonka): każdy swój, organizator także innym.
+ * Znak nie może się powtarzać w lidze (łącznie z nieaktywnymi graczami).
+ */
+export async function setMemberLook(db: Db, me: Me, memberId: string, raw: unknown): Promise<Member> {
+  if (memberId !== me.member.id) requireOrganizer(me);
+  await requireMemberOfLeague(db, me.league.id, memberId);
+  const look = parseLook(raw);
+  if (!look) throw new UserError("Nieznany kolor albo ikonka.");
+  if ((await takenLooks(db, me.league.id, memberId)).includes(lookKey(look))) throw takenLook(look);
+  try {
+    await db.query("update members set color_idx = $3, icon = $4 where id = $1 and league_id = $2", [
+      memberId,
+      me.league.id,
+      look.color,
+      look.icon,
+    ]);
+  } catch (e) {
+    if (isUniqueViolation(e)) throw takenLook(look);
+    throw e;
+  }
+  return (await listMembers(db, me.league.id, true)).find((m) => m.id === memberId)!;
+}
+
 function takenName(name: string, active: boolean) {
   return new UserError(
     active
@@ -218,15 +287,15 @@ export async function leagueByCode(db: Db, code: string): Promise<League | null>
 }
 
 /** Dołączenie po linku: nowy gracz z podaną nazwą, przypisany do tego urządzenia. */
-export async function joinLeague(db: Db, token: string, code: string, playerName: unknown) {
+export async function joinLeague(db: Db, token: string, code: string, playerName: unknown, look?: unknown) {
   const league = await leagueByCode(db, code);
   if (!league) throw new UserError("Nie ma ligi z takim kodem. Sprawdź link.", 404);
   const name = cleanName(playerName);
   try {
-    const memberId = await insertMember(db, league.id, name);
+    const memberId = await insertMember(db, league.id, name, false, look);
     await bindDevice(db, token, memberId);
   } catch (e) {
-    if (e instanceof UserError && e.status === 409)
+    if (e instanceof UserError && e.status === 409 && !(e instanceof LookTakenError))
       throw new UserError(
         `Gracz „${name}” już jest w tej lidze. Jeśli to Ty na nowym telefonie, poproś organizatora o link „Nowy telefon”.`,
         409,
@@ -236,9 +305,9 @@ export async function joinLeague(db: Db, token: string, code: string, playerName
 }
 
 /** Dodanie gracza bez telefonu (do wyboru przy nowej grze). */
-export async function addMember(db: Db, me: Me, playerName: unknown): Promise<Member> {
+export async function addMember(db: Db, me: Me, playerName: unknown, look?: unknown): Promise<Member> {
   const name = cleanName(playerName);
-  const id = await insertMember(db, me.league.id, name);
+  const id = await insertMember(db, me.league.id, name, false, look);
   return (await listMembers(db, me.league.id)).find((m) => m.id === id)!;
 }
 
@@ -630,6 +699,7 @@ export interface MemberStats {
   id: string;
   name: string;
   color: number;
+  icon: string | null;
   active: boolean;
   /** Gry ligowe (co najmniej dwóch graczy). */
   games: number;
@@ -689,6 +759,7 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
     id: member.id,
     name: member.name,
     color: member.color,
+    icon: member.icon,
     active: member.active,
     games: rows.length,
     wins: rows.filter((g) => g.place === 1).length,
@@ -737,7 +808,7 @@ export async function leagueStats(db: Db, leagueId: string): Promise<LeagueStats
       startedAt: r.started_at ? new Date(r.started_at).toISOString() : null,
       endedAt: r.ended_at ? new Date(r.ended_at).toISOString() : null,
     })),
-    members.map((m) => ({ id: m.id, name: m.name, color: m.color })),
+    members.map((m) => ({ id: m.id, name: m.name, color: m.color, icon: m.icon })),
   );
 }
 

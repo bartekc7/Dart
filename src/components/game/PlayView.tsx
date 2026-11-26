@@ -25,7 +25,7 @@ import {
 import type { GameState } from "@/lib/game/types";
 import type { Achievement } from "@/lib/game/achievements";
 import { AchCount } from "@/components/achievements/AchBadge";
-import { useEntryMode, usePlayerColors } from "@/components/league/LeagueProvider";
+import { useEntryMode, usePlayerColors, usePlayerIcons } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { useWakeLock } from "@/lib/useWakeLock";
@@ -60,6 +60,7 @@ export function PlayView({
   const [confirmCancel, setConfirmCancel] = useState(false);
   const router = useRouter();
   const colorOf = usePlayerColors();
+  const iconOf = usePlayerIcons();
   // Telefon leży przy tablicy: ekran nie gaśnie między seriami.
   useWakeLock();
   const [voice] = useVoice();
@@ -222,7 +223,7 @@ export function PlayView({
               }`}
               style={active ? activeRowStyle(colorOf(p.id)) : undefined}
             >
-              <PlayerDot color={colorOf(p.id)} big={active} />
+              <PlayerDot color={colorOf(p.id)} icon={iconOf(p.id)} big={active} />
               <span className="flex min-w-0 flex-1 flex-col leading-tight">
                 <span className="flex min-w-0 items-center gap-1.5">
                   <span className={`truncate land:text-xl ${active ? "font-bold" : "font-medium"} ${place ? "text-muted" : ""}`}>{p.name}</span>

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { FinalStandings, GameStats } from "@/components/game/FinalStandings";
-import { useLeague, useMemberName, usePlayerColors } from "@/components/league/LeagueProvider";
+import { useLeague, useMemberName, usePlayerColors, usePlayerIcons } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
@@ -76,6 +76,7 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
   const mine = player?.id === myId;
   const last = lastThrow(state);
   const colorOf = usePlayerColors();
+  const iconOf = usePlayerIcons();
   const hint = player ? checkout(remainingFor(state, player.id)) : null;
   const now = useNow(finishOrder(state).length > 0);
   const earned = useGameAchievements(state);
@@ -132,7 +133,7 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
               }`}
               style={active ? activeRowStyle(colorOf(p.id)) : undefined}
             >
-              <PlayerDot color={colorOf(p.id)} big={active} />
+              <PlayerDot color={colorOf(p.id)} icon={iconOf(p.id)} big={active} />
               <span className="flex min-w-0 flex-1 flex-col py-1 leading-tight">
                 <span className={`truncate text-lg font-medium ${place ? "text-muted" : ""}`}>
                   {p.name}

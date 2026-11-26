@@ -82,6 +82,13 @@ export function usePlayerColors(): (id: string | undefined) => string {
   };
 }
 
+/** Ikonka gracza ligi po id (null = gracz ma kolor). */
+export function usePlayerIcons(): (id: string | undefined) => string | null {
+  const { state } = useLeague();
+  const members = state.status === "ready" ? [...state.data.members, ...state.data.inactive] : [];
+  return (id) => members.find((x) => x.id === id)?.icon ?? null;
+}
+
 /**
  * Sposób wpisywania punktów w lidze (ustawia organizator, obowiązuje na
  * wszystkich telefonach). Bez ligi: suma serii.

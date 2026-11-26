@@ -94,7 +94,7 @@ export function LeagueStatsView() {
             </Chip>
             {hitters.map((p) => (
               <Chip key={p.id} active={who === p.id} onClick={() => setWho(p.id)}>
-                <PlayerDot color={playerColor(p.color)} />
+                <PlayerDot color={playerColor(p.color)} icon={p.icon} />
                 {p.name}
               </Chip>
             ))}
@@ -116,7 +116,7 @@ export function LeagueStatsView() {
                 href={`/gracz/${p.id}`}
                 className={`flex items-center gap-2 rounded-xl px-3 py-2.5 active:opacity-70 ${p.id === myId ? "bg-cream/15" : "bg-surface"}`}
               >
-                <PlayerDot color={playerColor(p.color)} />
+                <PlayerDot color={playerColor(p.color)} icon={p.icon} />
                 <span className={`min-w-0 flex-1 truncate ${p.id === myId ? "font-bold" : "font-medium"}`}>{p.name}</span>
                 <span className="whitespace-nowrap text-right text-xs text-muted">
                   <b className="font-mono text-sm text-ink tabular-nums">{p.wins}</b>/{p.games} wygr.
@@ -196,7 +196,7 @@ function Records({ stats, byId }: { stats: LeagueStats; byId: Map<string, League
                 <span className="min-w-0 flex-1">
                   <span className="block text-xs text-muted">{label}</span>
                   <span className="flex items-center gap-1.5 font-medium">
-                    {p && <PlayerDot color={playerColor(p.color)} />}
+                    {p && <PlayerDot color={playerColor(p.color)} icon={p.icon} />}
                     <span className="truncate">{p?.name ?? "Usunięty gracz"}</span>
                   </span>
                 </span>

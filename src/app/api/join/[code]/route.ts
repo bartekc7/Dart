@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { deviceToken, ensureDeviceToken, handle, readJson, withDeviceCookie } from "@/lib/server/http";
-import { joinLeague, leagueByCode, UserError, whoAmI } from "@/lib/server/league";
+import { joinLeague, leagueByCode, takenLooks, UserError, whoAmI } from "@/lib/server/league";
 
 /** Podgląd zaproszenia: nazwa ligi i czy ten telefon już do niej należy. */
 export async function GET(req: NextRequest, ctx: RouteContext<"/api/join/[code]">) {
@@ -13,6 +13,8 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/join/[code]"
       leagueName: league.name,
       memberName: me?.league.id === league.id ? me.member.name : null,
       otherLeague: me && me.league.id !== league.id ? me.league.name : null,
+      /** Kolory i ikonki, które mają już gracze ligi (do wyszarzenia). */
+      taken: await takenLooks(db, league.id),
     });
   });
 }
@@ -22,7 +24,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/join/[code]
   return handle(async (db) => {
     const body = await readJson(req);
     const { token } = ensureDeviceToken(req);
-    await joinLeague(db, token, code, body.name);
+    await joinLeague(db, token, code, body.name, body.look);
     return withDeviceCookie(NextResponse.json({ ok: true }), token);
   });
 }

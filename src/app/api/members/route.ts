@@ -7,6 +7,6 @@ export async function POST(req: NextRequest) {
   return handle(async (db) => {
     const me = await requireMe(db, deviceToken(req));
     const body = await readJson(req);
-    return NextResponse.json({ member: await addMember(db, me, body.name) });
+    return NextResponse.json({ member: await addMember(db, me, body.name, body.look) });
   });
 }
