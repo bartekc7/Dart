@@ -9,6 +9,7 @@ import { AddMemberForm } from "./AddMemberForm";
 import { useLeague } from "./LeagueProvider";
 import { ClearLeague } from "./ClearLeague";
 import { RecoveryCode } from "./RecoveryCode";
+import { RenameForm } from "./RenameForm";
 import { ShareLink } from "./ShareLink";
 import { LoadError, Loading } from "./StatusScreens";
 
@@ -19,7 +20,7 @@ export function LeaguePanel() {
 
   if (state.status === "loading") return <Loading />;
   if (state.status === "error") return <LoadError {...state} />;
-  const { me, members } = state.data;
+  const { me, members, inactive } = state.data;
   if (!me) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
@@ -74,6 +75,28 @@ export function LeaguePanel() {
           </p>
         )}
       </section>
+
+      {inactive.length > 0 && (
+        <section>
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+            Nieaktywni ({inactive.length})
+          </h2>
+          <ul className="flex flex-col gap-2">
+            {inactive.map((m) => (
+              <li
+                key={m.id}
+                className="flex min-h-12 items-center gap-2 rounded-2xl border border-dashed border-line px-4 text-muted"
+              >
+                <span className="min-w-0 flex-1 truncate text-lg line-through decoration-1">{m.name}</span>
+                <span className="text-xs">nieaktywny</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-sm text-muted">
+            Usunięci gracze zostają w rankingu i historii, ale nie można ich wybrać do gry. Ich nazwy są zajęte – dodanie gracza o tej samej nazwie przywraca go razem z wynikami.
+          </p>
+        </section>
+      )}
 
       {organizer && <RecoveryCode hasCode={me.league.hasRecoveryCode} />}
 
@@ -152,6 +175,7 @@ function MemberRow({
 function MemberActions({ member, self }: { member: Member; self: boolean }) {
   const { refresh } = useLeague();
   const [claimUrl, setClaimUrl] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -193,6 +217,13 @@ function MemberActions({ member, self }: { member: Member; self: boolean }) {
 
   return (
     <div className="flex flex-col gap-3 border-t border-line p-4">
+      {renaming ? (
+        <RenameForm member={member} onDone={() => setRenaming(false)} />
+      ) : (
+        <Button variant="secondary" onClick={() => setRenaming(true)}>
+          ✏️ Zmień nazwę
+        </Button>
+      )}
       {claimUrl ? (
         <>
           <p className="text-sm">

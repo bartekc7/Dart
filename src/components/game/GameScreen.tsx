@@ -34,6 +34,6 @@ export function GameScreen() {
       </div>
     );
   }
-  if (!game) return <SetupView members={state.data.members} myId={state.data.me.member.id} onStart={setGame} />;
+  if (!game) return <SetupView members={state.data.members} inactive={state.data.inactive} myId={state.data.me.member.id} onStart={setGame} />;
   return <ResultsView game={game} onChange={setGame} />;
 }

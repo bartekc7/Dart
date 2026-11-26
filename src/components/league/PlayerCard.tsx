@@ -50,6 +50,11 @@ export function PlayerCard({ id }: { id: string }) {
       >
         <PlayerDot color={color} big />
         <h2 className="min-w-0 flex-1 truncate text-2xl font-bold">{stats.name}</h2>
+        {!stats.active && (
+          <span className="shrink-0 rounded-full bg-surface-2 px-2 text-xs font-semibold text-muted ring-1 ring-line">
+            nieaktywny
+          </span>
+        )}
         {stats.id === myId && (
           <span className="shrink-0 rounded-full bg-cream px-2 text-xs font-bold text-board">TY</span>
         )}

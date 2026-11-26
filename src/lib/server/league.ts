@@ -22,6 +22,8 @@ export interface Member {
   hasDevice: boolean;
   /** Numer koloru gracza w lidze (kolejność dołączenia), patrz lib/colors. */
   color: number;
+  /** Nieaktywny = usunięty gracz z grami: zostaje ze starą nazwą, ale nie da się go wybrać do gry. */
+  active: boolean;
 }
 
 export interface League {
@@ -137,7 +139,7 @@ export async function whoAmI(db: Db, token: string | undefined): Promise<Me | nu
   await db.query("update devices set last_seen = now() where token_hash = $1", [hashToken(token)]);
   return {
     league: { id: r.league_id, name: r.league_name, joinCode: r.join_code, entryMode: toEntryMode(r.entry_mode), hasRecoveryCode: r.has_recovery },
-    member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true, color: r.color },
+    member: { id: r.id, name: r.name, isOrganizer: r.is_organizer, hasDevice: true, color: r.color, active: true },
   };
 }
 
@@ -154,8 +156,8 @@ function requireOrganizer(me: Me) {
 /** Aktywni gracze ligi; `withInactive` dokłada też usuniętych, którzy mają gry (np. do karty gracza). */
 export async function listMembers(db: Db, leagueId: string, withInactive = false): Promise<Member[]> {
   const { rows } = await db.query(
-    `select m.id, m.name, m.is_organizer, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, exists (select 1 from devices d where d.member_id = m.id) as has_device
-       from members m where m.league_id = $1 and (m.active or $2) order by m.is_organizer desc, lower(m.name)`,
+    `select m.id, m.name, m.is_organizer, m.active, (select count(*) from members x where x.league_id = m.league_id and (x.created_at, x.id) < (m.created_at, m.id))::int as color, exists (select 1 from devices d where d.member_id = m.id) as has_device
+       from members m where m.league_id = $1 and (m.active or $2) order by m.active desc, m.is_organizer desc, lower(m.name)`,
     [leagueId, withInactive],
   );
   return rows.map((r) => ({
@@ -164,7 +166,46 @@ export async function listMembers(db: Db, leagueId: string, withInactive = false
     isOrganizer: r.is_organizer,
     hasDevice: r.has_device,
     color: r.color,
+    active: r.active,
   }));
+}
+
+/** Nieaktywni gracze ligi (usunięci, ale z rozegranymi grami) – pokazywani wyszarzeni. */
+export async function inactiveMembers(db: Db, leagueId: string): Promise<Member[]> {
+  return (await listMembers(db, leagueId, true)).filter((m) => !m.active);
+}
+
+/**
+ * Zmiana nazwy gracza: każdy zmienia swoją, organizator także innym.
+ * Nazwa musi być unikalna w lidze (bez względu na wielkość liter), łącznie
+ * z nieaktywnymi graczami. Gry i ranking są powiązane po id, więc wszędzie
+ * od razu widać nową nazwę.
+ */
+export async function renameMember(db: Db, me: Me, memberId: string, rawName: unknown): Promise<Member> {
+  if (memberId !== me.member.id) requireOrganizer(me);
+  await requireMemberOfLeague(db, me.league.id, memberId);
+  const name = cleanName(rawName);
+  const { rows } = await db.query(
+    "select active from members where league_id = $1 and lower(name) = lower($2) and id <> $3",
+    [me.league.id, name, memberId],
+  );
+  if (rows[0]) throw takenName(name, rows[0].active);
+  try {
+    await db.query("update members set name = $3 where id = $1 and league_id = $2", [memberId, me.league.id, name]);
+  } catch (e) {
+    if (isUniqueViolation(e)) throw takenName(name, true);
+    throw e;
+  }
+  return (await listMembers(db, me.league.id)).find((m) => m.id === memberId)!;
+}
+
+function takenName(name: string, active: boolean) {
+  return new UserError(
+    active
+      ? `W lidze jest już gracz „${name}”. Wybierz inną nazwę.`
+      : `Nazwa „${name}” należy do nieaktywnego gracza. Wybierz inną.`,
+    409,
+  );
 }
 
 export async function leagueByCode(db: Db, code: string): Promise<League | null> {
@@ -587,6 +628,7 @@ export interface MemberStats {
   id: string;
   name: string;
   color: number;
+  active: boolean;
   /** Gry ligowe (co najmniej dwóch graczy). */
   games: number;
   wins: number;
@@ -645,6 +687,7 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
     id: member.id,
     name: member.name,
     color: member.color,
+    active: member.active,
     games: rows.length,
     wins: rows.filter((g) => g.place === 1).length,
     avgPlace: rows.length ? rows.reduce((s, g) => s + g.place, 0) / rows.length : null,

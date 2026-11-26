@@ -10,6 +10,8 @@ import type { Me, Member, MyGame } from "@/lib/server/league";
 export interface LeagueData {
   me: Me | null;
   members: Member[];
+  /** Usunięci gracze z grami: wyszarzeni, nie do wyboru w nowej grze. */
+  inactive: Member[];
   ranking: { rows: RankingRow[]; games: number };
   myGames: MyGame[];
 }
@@ -21,7 +23,7 @@ type State =
 
 const LeagueContext = createContext<{ state: State; refresh: () => Promise<void> } | null>(null);
 
-const EMPTY: LeagueData = { me: null, members: [], ranking: { rows: [], games: 0 }, myGames: [] };
+const EMPTY: LeagueData = { me: null, members: [], inactive: [], ranking: { rows: [], games: 0 }, myGames: [] };
 
 export function LeagueProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<State>({ status: "loading" });
@@ -70,7 +72,7 @@ export function useLeague() {
 /** Kolor gracza ligi po id (nieznany gracz dostaje kolor wyliczony z id). */
 export function usePlayerColors(): (id: string | undefined) => string {
   const { state } = useLeague();
-  const members = state.status === "ready" ? state.data.members : [];
+  const members = state.status === "ready" ? [...state.data.members, ...state.data.inactive] : [];
   return (id) => {
     const m = members.find((x) => x.id === id);
     if (m) return playerColor(m.color);
@@ -87,4 +89,10 @@ export function usePlayerColors(): (id: string | undefined) => string {
 export function useEntryMode(): EntryMode {
   const { state } = useLeague();
   return state.status === "ready" ? (state.data.me?.league.entryMode ?? "sum") : "sum";
+}
+
+/** Id nieaktywnych graczy ligi (do wyszarzenia w rankingu). */
+export function useInactiveIds(): Set<string> {
+  const { state } = useLeague();
+  return new Set(state.status === "ready" ? state.data.inactive.map((m) => m.id) : []);
 }

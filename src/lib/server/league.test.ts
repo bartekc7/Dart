@@ -26,6 +26,8 @@ import {
   leagueStats,
   leagueGames,
   removeMember,
+  renameMember,
+  inactiveMembers,
   clearLeague,
   recoverWithCode,
   setEntryMode,
@@ -365,5 +367,45 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect((await leagueRanking(db, me.league.id)).games).toBe(2);
     // Przywróceni są nieaktywni.
     expect((await listMembers(db, me.league.id)).map((m) => m.name)).toEqual(["Szef"]);
+  });
+
+  it("zmiana nazwy: swoja albo przez organizatora, bez powtórek (także z nieaktywnymi)", async () => {
+    const org = newDeviceToken();
+    const gracz = newDeviceToken();
+    await createLeague(db, org, "Nazwy", "Szef");
+    const me = await requireMe(db, org);
+    await joinLeague(db, gracz, me.league.joinCode, "Ola");
+    const ola = await requireMe(db, gracz);
+    const kuba = await addMember(db, me, "Kuba");
+    const zenek = await addMember(db, me, "Zenek");
+    const players = [me.member.id, ola.member.id, zenek.id];
+    const turns = [101, 101].map((x) => ({ scored: x }));
+    await saveGame(db, me, { id: "nz1", target: 101, players, turns });
+    await removeMember(db, me, zenek.id);
+
+    // Gracz zmienia swoją nazwę; ranking i historia od razu pokazują nową.
+    expect((await renameMember(db, ola, ola.member.id, "  Ola  K. ")).name).toBe("Ola K.");
+    expect((await requireMe(db, gracz)).member.name).toBe("Ola K.");
+    const game = (await leagueGames(db, me.league.id)).find((g) => g.id === "nz1")!;
+    expect(game.results.map((r) => r.name)).toContain("Ola K.");
+    // Sama zmiana wielkości liter jest dozwolona.
+    expect((await renameMember(db, ola, ola.member.id, "ola k.")).name).toBe("ola k.");
+
+    // Zwykły gracz nie zmieni nazwy innym; organizator tak.
+    await expect(renameMember(db, ola, kuba.id, "Jakub")).rejects.toThrow(/organizator/);
+    expect((await renameMember(db, me, kuba.id, "Jakub")).name).toBe("Jakub");
+
+    // Nazwy nie mogą się powtarzać – bez względu na wielkość liter, także z nieaktywnymi.
+    await expect(renameMember(db, ola, ola.member.id, "SZEF")).rejects.toThrow(/jest już gracz/);
+    await expect(renameMember(db, ola, ola.member.id, "zenek")).rejects.toThrow(/nieaktywnego/);
+    await expect(renameMember(db, ola, ola.member.id, "  ")).rejects.toThrow(/Podaj nazwę/);
+    // Nieaktywnego nie da się przemianować; zachowuje starą nazwę.
+    await expect(renameMember(db, me, zenek.id, "Zenon")).rejects.toThrow(/Nie ma takiego gracza/);
+    const inactive = await inactiveMembers(db, me.league.id);
+    expect(inactive.map((m) => [m.name, m.active])).toEqual([["Zenek", false]]);
+    // Nieaktywny nie może wziąć udziału w nowej grze.
+    await expect(
+      saveGame(db, me, { id: "nz2", target: 101, players: [me.member.id, zenek.id], turns }),
+    ).rejects.toThrow(/spoza ligi/);
   });
 });

@@ -24,10 +24,13 @@ function shuffle<T>(list: T[]): T[] {
 
 export function SetupView({
   members,
+  inactive = [],
   myId,
   onStart,
 }: {
   members: Member[];
+  /** Nieaktywni gracze: widoczni wyszarzeni, nie do wybrania. */
+  inactive?: Member[];
   myId: string;
   onStart: (g: GameState) => void;
 }) {
@@ -132,6 +135,17 @@ export function SetupView({
             >
               + {m.name}
             </button>
+          ))}
+          {inactive.map((m) => (
+            <span
+              key={m.id}
+              aria-disabled
+              title="Nieaktywny gracz – nie można go wybrać do gry"
+              className="flex min-h-12 items-center rounded-full border border-dashed border-line px-4 text-lg text-muted opacity-60"
+            >
+              <span className="line-through decoration-1">{m.name}</span>
+              <span className="ml-1.5 text-xs no-underline">nieaktywny</span>
+            </span>
           ))}
           {!adding && (
             <button
