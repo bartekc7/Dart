@@ -9,6 +9,22 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-26",
+    date: "26 listopada",
+    items: [
+      {
+        icon: "✏️",
+        title: "Zmiana nazwy",
+        text: "Swoją nazwę zmienisz w Opcjach (zębatka). Organizator może też zmienić nazwę innym w panelu ligi. Nazwy w lidze nie mogą się powtarzać.",
+      },
+      {
+        icon: "👻",
+        title: "Nieaktywni gracze",
+        text: "Usunięci gracze zostają ze starą nazwą, wyszarzeni w rankingu i liście graczy. Nie da się ich wybrać do nowej gry.",
+      },
+    ],
+  },
+  {
     id: "2026-11-24",
     date: "24 listopada",
     items: [

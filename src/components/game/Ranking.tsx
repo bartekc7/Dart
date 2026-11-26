@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { usePlayerColors } from "@/components/league/LeagueProvider";
+import { useInactiveIds, usePlayerColors } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import type { RankingRow } from "@/lib/game/history";
 
@@ -11,6 +11,7 @@ const MEDALS = ["🥇", "🥈", "🥉"];
 /** Ranking graczy ligi z ostatnich gier. */
 export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: number; myId?: string }) {
   const colorOf = usePlayerColors();
+  const inactive = useInactiveIds();
   const router = useRouter();
   if (rows.length === 0) {
     return (
@@ -44,11 +45,12 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
         <tbody>
           {rows.map((r, i) => {
             const me = r.id === myId;
+            const gone = !!r.id && inactive.has(r.id);
             return (
               <tr
                 key={r.id ?? r.name}
                 onClick={r.id ? () => router.push(`/gracz/${r.id}`) : undefined}
-                className={`${me ? "bg-cream/15" : "bg-surface"} ${r.id ? "cursor-pointer active:opacity-70" : ""}`}
+                className={`${me ? "bg-cream/15" : "bg-surface"} ${r.id ? "cursor-pointer active:opacity-70" : ""} ${gone ? "text-muted opacity-60" : ""}`}
               >
                 <td className={`rounded-l-xl py-2 pl-3 text-center ${me ? "shadow-[inset_3px_0_0_var(--color-cream)]" : ""}`}>
                   {MEDALS[i] ?? <span className="font-mono text-sm text-muted">{i + 1}.</span>}
@@ -70,7 +72,11 @@ export function Ranking({ rows, games, myId }: { rows: RankingRow[]; games: numb
                     {me && (
                       <span className="shrink-0 rounded-full bg-cream px-1.5 text-[11px] font-bold text-board">TY</span>
                     )}
-                    <Trend trend={r.trend} />
+                    {gone ? (
+                      <span className="shrink-0 text-[11px] font-semibold text-muted">nieaktywny</span>
+                    ) : (
+                      <Trend trend={r.trend} />
+                    )}
                   </span>
                 </td>
                 <td className="px-1 text-right font-mono tabular-nums text-muted">{r.games}</td>
