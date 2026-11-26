@@ -1,6 +1,6 @@
 "use client";
 
-import { useLeague } from "@/components/league/LeagueProvider";
+import { useLeague, useMemberName } from "@/components/league/LeagueProvider";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
 import { ButtonLink } from "@/components/ui/Button";
 import { isGameOver } from "@/lib/game/engine";
@@ -8,7 +8,7 @@ import { useStoredGame } from "@/lib/game/storage";
 import { publishLive } from "@/lib/live/publish";
 import { useEffect } from "react";
 import { AchievementToasts } from "@/components/achievements/AchievementToasts";
-import { useGameAchievements } from "@/components/achievements/useAchievements";
+import { useGameAchievements, useGameRecords } from "@/components/achievements/useAchievements";
 import { PlayView } from "./PlayView";
 import { ResultsView } from "./ResultsView";
 import { SetupView } from "./SetupView";
@@ -18,6 +18,8 @@ export function GameScreen() {
   const { state } = useLeague();
   // Osiągnięcia zdobyte w tej grze: dymek w trakcie i licznik przy graczu.
   const earned = useGameAchievements(game);
+  const records = useGameRecords(game);
+  const memberName = useMemberName();
 
   // Każda zmiana (seria, cofnięcie, koniec) trafia do podglądu u pozostałych graczy.
   useEffect(() => {
@@ -29,7 +31,12 @@ export function GameScreen() {
     return (
       <>
         <PlayView game={game} onChange={setGame} earned={earned} />
-        <AchievementToasts earned={earned} nameOf={(id) => game.players.find((p) => p.id === id)?.name ?? ""} />
+        <AchievementToasts
+          earned={earned}
+          records={records}
+          nameOf={(id) => game.players.find((p) => p.id === id)?.name ?? ""}
+          holderName={memberName}
+        />
       </>
     );
   if (game === undefined || state.status === "loading") return <Loading />;

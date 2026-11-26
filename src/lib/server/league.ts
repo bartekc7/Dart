@@ -2,7 +2,8 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { applyTurn, createGame, endGame, gameDuration, gameEnd, gameStart, isGameOver, standings } from "../game/engine";
 import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
 import { computeLeagueStats, type LeagueStats } from "../game/leagueStats";
-import { computeProgress, type AchProgress } from "../game/achievements";
+import { computeProgress, type AchGame, type AchProgress } from "../game/achievements";
+import { computeRecords, type RecordsState } from "../game/records";
 import type { EntryMode, GameState, Turn } from "../game/types";
 import type { Db } from "./db";
 
@@ -749,7 +750,7 @@ export async function leagueAchievements(
   db: Db,
   leagueId: string,
   exclude?: string,
-): Promise<Record<string, AchProgress>> {
+): Promise<{ members: Record<string, AchProgress>; records: RecordsState }> {
   const { rows } = await db.query(
     `select g.id, g.finished_at, g.target, g.turns,
             coalesce((select json_object_agg(r.member_id, r.place)
@@ -759,17 +760,17 @@ export async function leagueAchievements(
       order by g.finished_at asc, g.id`,
     [leagueId, exclude ?? ""],
   );
-  return computeProgress(
-    rows.map((r) => {
-      const places = r.places as Record<string, number>;
-      return {
-        id: r.id,
-        target: r.target,
-        players: Object.keys(places),
-        turns: (r.turns as Turn[]) ?? [],
-        at: new Date(r.finished_at).getTime(),
-        places,
-      };
-    }),
-  );
+  const games: AchGame[] = rows.map((r) => {
+    const places = r.places as Record<string, number>;
+    return {
+      id: r.id,
+      target: r.target,
+      players: Object.keys(places),
+      turns: (r.turns as Turn[]) ?? [],
+      at: new Date(r.finished_at).getTime(),
+      places,
+    };
+  });
+  // Osiągnięcia i rekordy z tej samej historii: jedno zapytanie, dwie odpowiedzi.
+  return { members: computeProgress(games), records: computeRecords(games) };
 }

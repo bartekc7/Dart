@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { FinalStandings, GameStats } from "@/components/game/FinalStandings";
-import { useLeague, usePlayerColors } from "@/components/league/LeagueProvider";
+import { useLeague, useMemberName, usePlayerColors } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { accentBackground, activeRowStyle } from "@/lib/colors";
 import { LoadError, Loading } from "@/components/league/StatusScreens";
@@ -17,7 +17,7 @@ import { FAST_POLL_MS, IDLE_POLL_MS, usePoll } from "@/lib/live/usePoll";
 import type { LiveGame } from "@/lib/server/league";
 import { AchievementToasts } from "@/components/achievements/AchievementToasts";
 import { GameAchievements } from "@/components/achievements/GameAchievements";
-import { useGameAchievements } from "@/components/achievements/useAchievements";
+import { useGameAchievements, useGameRecords } from "@/components/achievements/useAchievements";
 import { AchCount } from "@/components/achievements/AchBadge";
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -79,6 +79,8 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
   const hint = player ? checkout(remainingFor(state, player.id)) : null;
   const now = useNow(finishOrder(state).length > 0);
   const earned = useGameAchievements(state);
+  const records = useGameRecords(state);
+  const memberName = useMemberName();
 
   return (
     <div className="flex flex-col gap-4">
@@ -151,7 +153,13 @@ function Playing({ game, myId }: { game: LiveGame; myId: string }) {
         })}
       </ol>
 
-      <AchievementToasts earned={earned} nameOf={() => ""} onlyFor={myId} />
+      <AchievementToasts
+        earned={earned}
+        records={records}
+        nameOf={(id) => state.players.find((p) => p.id === id)?.name ?? ""}
+        holderName={memberName}
+        onlyFor={myId}
+      />
       <p className="text-center text-sm text-muted">
         Punkty wpisuje {game.scorer.name ?? "inny telefon"}. Ekran odświeża się sam.
       </p>
