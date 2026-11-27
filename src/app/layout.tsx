@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LeagueProvider } from "@/components/league/LeagueProvider";
 import { DuelProvider } from "@/components/duel/DuelProvider";
+import { TapFlash } from "@/components/ui/TapFlash";
 import { themeInitScript } from "@/lib/theme";
 import "./globals.css";
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full">
+        <TapFlash />
         {/* Kolumna o szerokości telefonu; ekrany oznaczone klasą .wide (gra, start)
             rozkładają się na dwie kolumny na tablecie i komputerze. */}
         <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-4 md:px-6 md:has-[.wide]:max-w-6xl pt-[calc(max(1rem,env(safe-area-inset-top))+0.75rem)] pb-[max(1rem,env(safe-area-inset-bottom))]">
