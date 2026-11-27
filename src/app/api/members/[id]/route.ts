@@ -9,7 +9,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<"/api/members/[
     const me = await requireMe(db, deviceToken(req));
     await removeMember(db, me, id);
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }
 
 /** Zmiana nazwy i/lub znaku: swojej (każdy) albo innego gracza (organizator). */
@@ -27,5 +27,5 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<"/api/members/[i
     }
     if (!member) throw new UserError("Nic do zmiany.");
     return NextResponse.json({ member });
-  });
+  }, req);
 }

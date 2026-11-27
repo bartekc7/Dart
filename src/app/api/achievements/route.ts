@@ -8,5 +8,5 @@ export async function GET(req: NextRequest) {
     const me = await requireMe(db, deviceToken(req));
     const exclude = req.nextUrl.searchParams.get("exclude")?.slice(0, 64) || undefined;
     return NextResponse.json(await leagueAchievements(db, me.league.id, exclude));
-  });
+  }, req);
 }

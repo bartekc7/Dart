@@ -44,7 +44,7 @@ describe.skipIf(!url)("rejestr zdarzeń i panel admina", () => {
     const { rows } = await db.query("select * from events where type = 'game_end'");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ member_id: me.member.id, league_id: me.league.id, device: deviceTag(ania) });
-    expect(Object.keys(rows[0]).sort()).toEqual(["at", "device", "id", "league_id", "member_id", "profile_id", "type"]);
+    expect(Object.keys(rows[0]).sort()).toEqual(["at", "detail", "device", "id", "league_id", "member_id", "profile_id", "type"]);
   });
 
   it("wejście do aplikacji liczy się raz na pół godziny z jednego telefonu", async () => {

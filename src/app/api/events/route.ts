@@ -9,5 +9,5 @@ export async function POST(req: NextRequest) {
     const token = deviceToken(req);
     if (token && isClientEvent(body.type)) track(db, { type: body.type, token });
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }

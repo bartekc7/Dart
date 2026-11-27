@@ -166,6 +166,19 @@ create index if not exists events_league_at on events (league_id, at desc);
 create index if not exists events_member_at on events (member_id, at desc);
 create index if not exists events_device_type on events (device, type, at desc);
 delete from events where at < now() - interval '90 days';
+-- Opis akcji admina (np. nazwa usuniętej ligi); zwykłe zdarzenia go nie mają.
+alter table events add column if not exists detail text;
+-- Błędy serwera dla panelu admina: rodzaj, skrócony komunikat i ścieżka bez identyfikatorów.
+create table if not exists server_errors (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  kind text not null,
+  message text not null,
+  path text,
+  method text,
+  source text
+);
+create index if not exists server_errors_at on server_errors (at desc);
 `;
 
 export async function ensureSchema(db: Db) {

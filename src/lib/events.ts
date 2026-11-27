@@ -19,6 +19,7 @@ export const EVENT_TYPES = {
   duel_end: { label: "Koniec 1 na 1", icon: "🏅" },
   duel_cancel: { label: "Anulowanie 1 na 1", icon: "✕" },
   duel_decline: { label: "Odrzucenie 1 na 1", icon: "🚫" },
+  admin_league_delete: { label: "Usunięcie ligi w panelu admina", icon: "🗑️" },
 } as const;
 
 export type EventType = keyof typeof EVENT_TYPES;

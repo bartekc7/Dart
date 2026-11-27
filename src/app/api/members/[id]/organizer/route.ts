@@ -9,5 +9,5 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/members/[id
     const me = await requireMe(db, deviceToken(req));
     await makeOrganizer(db, me, id);
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }

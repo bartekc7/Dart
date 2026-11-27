@@ -49,5 +49,5 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/duels/[id]/
       default:
         throw new UserError("Nieznana akcja.", 404);
     }
-  });
+  }, req);
 }

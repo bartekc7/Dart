@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { adminKey, checkKey, isAdminSession, sessionValue } from "./adminAuth";
+import { actionToken, adminKey, checkActionToken, checkKey, isAdminSession, sessionValue } from "./adminAuth";
 
 describe("klucz panelu admina", () => {
   const key = "tajny-klucz-123456";
@@ -28,5 +28,17 @@ describe("klucz panelu admina", () => {
     expect(isAdminSession(key, key)).toBe(false);
     expect(isAdminSession(undefined, key)).toBe(false);
     expect(isAdminSession(cookie, "inny-klucz-654321")).toBe(false);
+  });
+
+  it("token akcji zapisującej pasuje tylko do tej akcji, tego obiektu i tego klucza", () => {
+    const t = actionToken(key, "delete-league", "liga-1");
+    expect(checkActionToken(t, key, "delete-league", "liga-1")).toBe(true);
+    expect(checkActionToken(t, key, "delete-league", "liga-2")).toBe(false);
+    expect(checkActionToken(t, key, "inna-akcja", "liga-1")).toBe(false);
+    expect(checkActionToken(t, "inny-klucz-123456", "delete-league", "liga-1")).toBe(false);
+    expect(checkActionToken(t, null, "delete-league", "liga-1")).toBe(false);
+    expect(checkActionToken("", key, "delete-league", "liga-1")).toBe(false);
+    expect(checkActionToken(undefined, key, "delete-league", "liga-1")).toBe(false);
+    expect(t).not.toContain(key);
   });
 });

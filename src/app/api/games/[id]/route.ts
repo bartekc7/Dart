@@ -9,5 +9,5 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<"/api/games/[id
     const me = await requireMe(db, deviceToken(req));
     await deleteGame(db, me, id);
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }

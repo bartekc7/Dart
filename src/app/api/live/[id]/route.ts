@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     const game = await liveGame(db, me.league.id, id);
     if (!game) return NextResponse.json({ error: "Ta gra już się nie toczy." }, { status: 404 });
     return NextResponse.json({ game });
-  });
+  }, req);
 }
 
 /** Telefon liczący punkty wysyła bieżący stan gry. */
@@ -24,7 +24,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     const out = await publishLiveGame(db, me, { ...body, id });
     if (out.created) track(db, { type: "game_start", memberId: me.member.id, token: deviceToken(req) });
     return NextResponse.json(out);
-  });
+  }, req);
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
@@ -34,5 +34,5 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
     const { cancelled } = await deleteLiveGame(db, me, id);
     if (cancelled) track(db, { type: "game_cancel", memberId: me.member.id, token: deviceToken(req) });
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }

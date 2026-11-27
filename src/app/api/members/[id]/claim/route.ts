@@ -8,5 +8,5 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/members/[id
   return handle(async (db) => {
     const me = await requireMe(db, deviceToken(req));
     return NextResponse.json({ token: await createClaimToken(db, me, id) });
-  });
+  }, req);
 }
