@@ -9,6 +9,22 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-27-3",
+    date: "27 listopada",
+    items: [
+      {
+        icon: "🤝",
+        title: "Bilans z rywalami",
+        text: "Ekran „⚔️ 1 na 1” pokazuje teraz Twój bilans, listę rywali i Twoje rekordy 1 na 1. Dotknij rywala, żeby zobaczyć Ty vs on: kto prowadzi, serię wygranych, średnie, najlepsze serie i ostatnie wspólne gry.",
+      },
+      {
+        icon: "📈",
+        title: "Rekordy 1 na 1",
+        text: "Gry 1 na 1 mają własne rekordy: najlepsza seria, najszybsza wygrana i średnia meczu. Pobijesz rekord, to od razu zobaczysz dymek.",
+      },
+    ],
+  },
+  {
     id: "2026-11-27-2",
     date: "27 listopada",
     items: [

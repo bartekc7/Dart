@@ -21,7 +21,7 @@ const STARTERS: { value: Starter; label: string }[] = [
 ];
 
 /** Nowy pojedynek: do ilu, kto zaczyna i kogo zaprosić (zaproszenie wyskakuje w jego aplikacji). */
-export function NewDuel() {
+export function NewDuel({ focusId }: { focusId?: string }) {
   const duels = useDuels();
   const router = useRouter();
   const [target, setTarget] = useState<number>(101);
@@ -35,12 +35,13 @@ export function NewDuel() {
     if (!hasProfile) return;
     let alive = true;
     api<{ opponents: Opponent[] }>("/api/duels/opponents")
-      .then((d) => alive && setList(d.opponents))
+      // Wejście z ekranu „Ty vs rywal”: ten rywal na górze listy.
+      .then((d) => alive && setList([...d.opponents].sort((a, b) => Number(b.id === focusId) - Number(a.id === focusId))))
       .catch((e: ApiError) => alive && setError(e.message));
     return () => {
       alive = false;
     };
-  }, [hasProfile]);
+  }, [hasProfile, focusId]);
 
   if (!duels) return <Loading />;
   if (!duels.profile) {
@@ -88,7 +89,7 @@ export function NewDuel() {
 
   return (
     <>
-      <AppHeader title="Nowy pojedynek" backHref="/" />
+      <AppHeader title="Nowy pojedynek" backHref="/1na1" />
       <div className="flex flex-col gap-5">
         <p className="-mt-3 text-sm text-muted">Gra towarzyska 1 na 1. Nie wpływa na ranking ligi.</p>
         <section className="flex flex-col gap-2">

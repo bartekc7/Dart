@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   checkout,
   currentPlayer,
@@ -24,6 +24,8 @@ import { useEntryMode } from "@/components/league/LeagueProvider";
 import { PlayerDot } from "@/components/ui/PlayerDot";
 import { DartPad, NO_DARTS, type PendingDarts } from "@/components/game/DartPad";
 import { Keypad } from "@/components/game/Keypad";
+import { AchievementToasts } from "@/components/achievements/AchievementToasts";
+import type { RecordEvent } from "@/lib/game/records";
 
 type Feedback = { text: string; bad: boolean } | null;
 
@@ -31,7 +33,18 @@ type Feedback = { text: string; bad: boolean } | null;
  * Gra 1 na 1 na dwóch telefonach. Klawiatura jest tylko u gracza, który ma
  * kolej – każdy wpisuje swoje rzutki u siebie. Drugi telefon widzi je na żywo.
  */
-export function DuelPlay({ duel, meId, onDuel }: { duel: Duel; meId: string; onDuel: (d: Duel) => void }) {
+export function DuelPlay({
+  duel,
+  meId,
+  onDuel,
+  records,
+}: {
+  duel: Duel;
+  meId: string;
+  onDuel: (d: Duel) => void;
+  /** Moje nowe rekordy 1 na 1 w tej grze (dymek po serii). */
+  records: RecordEvent[] | null;
+}) {
   const router = useRouter();
   const state = duel.state!;
   const leagueMode = useEntryMode();
@@ -46,6 +59,7 @@ export function DuelPlay({ duel, meId, onDuel }: { duel: Duel; meId: string; onD
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   useWakeLock();
+  const noAchievements = useMemo(() => ({}), []);
 
   const profiles = [duel.inviter, duel.rival!];
   const profileOf = (id: string) => profiles.find((p) => p.id === id) as DuelProfile;
@@ -282,6 +296,7 @@ export function DuelPlay({ duel, meId, onDuel }: { duel: Duel; meId: string; onD
           <RivalTurn name={rival.name} color={colorOf(rival.id)} darts={shown} />
         )}
       </div>
+      <AchievementToasts earned={noAchievements} records={records} nameOf={(id) => profileOf(id)?.name ?? ""} onlyFor={meId} recordTitle="Nowy rekord 1 na 1" />
     </main>
   );
 }

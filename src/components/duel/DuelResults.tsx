@@ -11,9 +11,22 @@ import { accentBackground, playerColor } from "@/lib/colors";
 import type { Duel, DuelProfile } from "@/lib/duel";
 import { formatDuration, gameDuration, playerStats } from "@/lib/game/engine";
 import type { GameState, PlayerId } from "@/lib/game/types";
+import { formatRecord, recordLabel, summarizeEvents, type RecordEvent } from "@/lib/game/records";
+import { RECORD_COLOR } from "@/components/achievements/AchievementToasts";
 
 /** Wyniki 1 na 1: kto wygrał, bilans pary, porównanie i rewanż. */
-export function DuelResults({ duel, meId, onDuel }: { duel: Duel; meId: string; onDuel: (d: Duel) => void }) {
+export function DuelResults({
+  duel,
+  meId,
+  onDuel,
+  records,
+}: {
+  duel: Duel;
+  meId: string;
+  onDuel: (d: Duel) => void;
+  /** Moje nowe rekordy 1 na 1 z tej gry. */
+  records: RecordEvent[] | null;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +93,13 @@ export function DuelResults({ duel, meId, onDuel }: { duel: Duel; meId: string; 
         <Compare label="najlepsza seria" a={bestSeries(state, me.id)} b={bestSeries(state, rival.id)} />
         <Compare label="przekroczenia" a={String(playerStats(state, me.id).busts)} b={String(playerStats(state, rival.id).busts)} last />
       </section>
+
+      {records && summarizeEvents(records).map((r) => (
+        <p key={r.key} className="rounded-2xl px-4 py-3 font-semibold ring-1" style={{ color: RECORD_COLOR, borderColor: RECORD_COLOR, backgroundColor: `color-mix(in oklab, ${RECORD_COLOR} 12%, transparent)` }}>
+          📈 Nowy rekord 1 na 1: {recordLabel(r.key).toLowerCase()} {formatRecord(r.key, r.value)}{" "}
+          <span className="font-normal text-muted">(było {formatRecord(r.key, r.prev.value)})</span>
+        </p>
+      ))}
 
       <FormError message={error} />
       <div className="mt-auto flex flex-col gap-2">

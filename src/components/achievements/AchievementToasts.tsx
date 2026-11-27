@@ -28,6 +28,7 @@ export function AchievementToasts({
   nameOf,
   holderName,
   onlyFor,
+  recordTitle,
 }: {
   earned: Record<string, Achievement[]> | null;
   records?: RecordEvent[] | null;
@@ -36,6 +37,8 @@ export function AchievementToasts({
   holderName?: (playerId: string) => string;
   /** Podgląd na żywo: osiągnięcia i rekordy osobiste tylko tego gracza, rekordy ligi wszystkich. */
   onlyFor?: string;
+  /** Własny podpis rekordu zamiast „rekord ligi/osobisty” (np. „Nowy rekord 1 na 1”). */
+  recordTitle?: string;
 }) {
   const seen = useRef<Set<string> | null>(null);
   const [queue, setQueue] = useState<Toast[]>([]);
@@ -104,7 +107,7 @@ export function AchievementToasts({
             <span className="block truncate text-xs font-bold uppercase tracking-wider" style={{ color }}>
               {current.a
                 ? `🏆 ${mine ? "Twoje nowe osiągnięcie" : `Osiągnięcie · ${nameOf(current.playerId)}`}`
-                : `📈 ${current.rec!.scope === "league" ? "Nowy rekord ligi" : "Nowy rekord osobisty"}${mine ? "" : ` · ${nameOf(current.playerId)}`}`}
+                : `📈 ${recordTitle ?? (current.rec!.scope === "league" ? "Nowy rekord ligi" : "Nowy rekord osobisty")}${mine ? "" : ` · ${nameOf(current.playerId)}`}`}
             </span>
             {current.a ? (
               <>
@@ -118,7 +121,7 @@ export function AchievementToasts({
                 </span>
                 <span className="block text-sm text-muted">
                   Poprzedni: {formatRecord(current.rec!.key, current.rec!.prev.value)}
-                  {current.rec!.scope === "league" && ` · ${holder(current.rec!.prev.memberId)}`}
+                  {current.rec!.scope === "league" && !recordTitle && ` · ${holder(current.rec!.prev.memberId)}`}
                 </span>
               </>
             )}
@@ -135,7 +138,7 @@ export function AchievementToasts({
             className="block w-full border-t px-3.5 py-2 text-sm font-bold"
             style={{ color: RECORD_COLOR, borderColor: `color-mix(in oklab, ${RECORD_COLOR} 45%, transparent)`, backgroundColor: `color-mix(in oklab, ${RECORD_COLOR} 14%, transparent)` }}
           >
-            📈 …i {r.scope === "league" ? "nowy rekord ligi" : "nowy rekord osobisty"}: {recordLabel(r.key).toLowerCase()}{" "}
+            📈 …i {recordTitle?.toLowerCase() ?? (r.scope === "league" ? "nowy rekord ligi" : "nowy rekord osobisty")}: {recordLabel(r.key).toLowerCase()}{" "}
             {formatRecord(r.key, r.value)} <span className="font-medium text-muted">(było {formatRecord(r.key, r.prev.value)})</span>
           </span>
         ))}

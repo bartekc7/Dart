@@ -13,6 +13,8 @@ import {
   type DuelProfile,
   type DuelStatus,
 } from "../duel";
+import { duelRecords, duelTotals, headToHead, type DuelTotals, type FinishedDuel, type HeadToHead } from "../duelStats";
+import type { RecordsState } from "../game/records";
 import type { Db } from "./db";
 import { cleanName, hashToken, listMembers, newJoinCode, UserError, whoAmI, type Member } from "./league";
 
@@ -221,6 +223,8 @@ export interface Opponent extends DuelProfile {
   lost: number;
   /** Ostatnia wspólna gra (ISO) albo null. */
   lastPlayed: string | null;
+  /** Czy wygrałem ostatnią wspólną grę (null = jeszcze nie graliśmy). */
+  lastWon: boolean | null;
 }
 
 /** Kogo mogę zaprosić: gracze mojej ligi i wszyscy, z kim już grałem 1 na 1. */
@@ -232,15 +236,16 @@ export async function opponents(db: Db, token: string | undefined): Promise<Oppo
     for (const m of await listMembers(db, league.league.id)) {
       if (m.id === league.member.id) continue;
       const p = await profileForMember(db, m);
-      out.set(p.id, { ...p, inLeague: true, won: 0, lost: 0, lastPlayed: null });
+      out.set(p.id, { ...p, inLeague: true, won: 0, lost: 0, lastPlayed: null, lastWon: null });
     }
   }
   const { rows } = await db.query(
-    `select o.id, o.name, o.color_idx, o.icon, t.won, t.lost, t.last
+    `select o.id, o.name, o.color_idx, o.icon, t.won, t.lost, t.last, t.last_won
        from (select case when inviter_id = $1 then rival_id else inviter_id end as other,
                     count(*) filter (where winner_id = $1)::int as won,
                     count(*) filter (where winner_id <> $1)::int as lost,
-                    max(coalesce(ended_at, updated_at)) as last
+                    max(coalesce(ended_at, updated_at)) as last,
+                    (array_agg(winner_id = $1 order by coalesce(ended_at, updated_at) desc))[1] as last_won
                from duels where status = 'finished' and (inviter_id = $1 or rival_id = $1) group by 1) t
        join duel_profiles o on o.id = t.other`,
     [me.id],
@@ -252,6 +257,7 @@ export async function opponents(db: Db, token: string | undefined): Promise<Oppo
       won: r.won,
       lost: r.lost,
       lastPlayed: new Date(r.last).toISOString(),
+      lastWon: r.last_won,
     });
   }
   return [...out.values()].sort(
@@ -514,4 +520,50 @@ export async function rematchDuel(db: Db, token: string | undefined, id: string)
   await requireFreeRival(db, rivalId);
   const loser = rematchStarter(r.state as GameState, (r.winner_id as string) ?? null);
   return { id: await insertInvite(db, me, rivalId, r.target as number, loser === me.id ? "inviter" : "rival", r.id as string) };
+}
+
+/** Moje zakończone gry 1 na 1 (opcjonalnie tylko z jednym rywalem). */
+async function finishedDuels(db: Db, meId: string, rivalId?: string): Promise<FinishedDuel[]> {
+  const { rows } = await db.query(
+    `select id, target, state, winner_id, coalesce(ended_at, updated_at) as ended
+       from duels
+      where status = 'finished' and (inviter_id = $1 or rival_id = $1)
+        and ($2::text is null or inviter_id = $2 or rival_id = $2)
+      order by ended`,
+    [meId, rivalId ?? null],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    target: r.target,
+    state: r.state as GameState,
+    winnerId: r.winner_id ?? null,
+    endedAt: new Date(r.ended).getTime(),
+  }));
+}
+
+export interface DuelSummary {
+  profile: DuelProfile;
+  totals: DuelTotals;
+  /** Moje rekordy 1 na 1 (stan do liczenia nowych rekordów w trakcie gry). */
+  records: RecordsState;
+}
+
+/** Ekran 1 na 1: mój bilans ze wszystkimi i moje rekordy. */
+export async function duelSummary(db: Db, token: string | undefined, exceptId?: string): Promise<DuelSummary> {
+  const me = await requireProfile(db, token);
+  // Bez bieżącej gry: ekran wyników liczy z niej „nowe rekordy” względem wcześniejszych.
+  const games = (await finishedDuels(db, me.id)).filter((g) => g.id !== exceptId);
+  return { profile: me, totals: duelTotals(games, me.id), records: duelRecords(games, me.id) };
+}
+
+/** Ty vs rywal: bilans, porównanie i ostatnie wspólne gry. */
+export async function rivalSummary(db: Db, token: string | undefined, rivalId: string): Promise<{ rival: DuelProfile; h2h: HeadToHead }> {
+  const me = await requireProfile(db, token);
+  const { rows } = await db.query("select * from duel_profiles where id = $1", [rivalId]);
+  if (!rows[0] || rivalId === me.id) throw new UserError("Nie ma takiego gracza.", 404);
+  const games = await finishedDuels(db, me.id, rivalId);
+  const known = games.length > 0 || (await opponents(db, token)).some((o) => o.id === rivalId);
+  if (!known) throw new UserError("Nie ma takiego gracza.", 404);
+  const [, rival] = distinctLooks(me, toProfile(rows[0]));
+  return { rival, h2h: headToHead(games, me.id, rivalId) };
 }
