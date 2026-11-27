@@ -114,3 +114,55 @@ body {
     animation: none;
   }
 }
+
+/*
+ * Widoczne dotknięcie przycisku. Szybkie stuknięcie palcem trwa ~80 ms, więc samo :active
+ * bywa niewidoczne (a domyślne podświetlenie iOS jest wyłączone) – po dotknięciu przycisk
+ * dostaje na chwilę klasę .tap-flash (components/ui/TapFlash.tsx): przygasa i świeci obwódką.
+ */
+@keyframes tap-flash {
+  0% {
+    transform: scale(0.93);
+    filter: brightness(1.35);
+    outline: 3px solid var(--color-cream);
+    outline-offset: 0;
+  }
+  100% {
+    outline: 3px solid transparent;
+    outline-offset: 4px;
+  }
+}
+.tap-flash {
+  animation: tap-flash 0.35s ease-out;
+}
+button:active:not(:disabled) {
+  filter: brightness(1.2);
+}
+
+/* Nowy wpis (pigułka rzutki, pole tarczy) pojawia się z „wyskokiem”. */
+@keyframes tap-pop {
+  0% {
+    transform: scale(1.45);
+    filter: brightness(1.4);
+  }
+}
+.tap-pop {
+  animation: tap-pop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes board-flash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.board-flash {
+  animation: board-flash 0.45s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tap-flash,
+  .tap-pop {
+    animation: none;
+  }
+}

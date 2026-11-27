@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addAim, addCheckout, addClock, addFree, aimSummary, AIM_DARTS, CHECKOUT_ROUNDS, clockField, endFree, formatScore,
   freeSummary, freeTotals, isFreeSeriesRecord, isTrainingOver, MODES,
-  isTrainingRecord, isTrainingState, startTraining, trainingScore, trainingStats, undoTraining, type TrainingRecord, type TrainingState,
+  isTrainingRecord, isTrainingState, recentThrows, startTraining, trainingScore, trainingStats, undoTraining, type TrainingRecord, type TrainingState,
 } from "./training";
 
 const rec = (score: number, i: number, mode: TrainingRecord["mode"] = "aim", variant = "20"): TrainingRecord => ({
@@ -114,5 +114,38 @@ describe("trening swobodny", () => {
     expect(isFreeSeriesRecord(list, "x", ["T20", "T20", "T19"])).toBeNull();
     expect(isFreeSeriesRecord(list.slice(1), "x", ["T20", "T20", "T19"])).toBe(3);
     expect(isFreeSeriesRecord([], "x", ["T20"])).toBeNull();
+  });
+});
+
+describe("ostatnie wpisy treningu", () => {
+  it("Celowanie: pola i pudła, najwyżej n ostatnich", () => {
+    let s = startTraining("aim", "20");
+    for (const h of ["T", "0", "S", "D"] as const) s = addAim(s, h);
+    expect(recentThrows(s, 3)).toEqual([
+      { label: "pudło", kind: "miss" },
+      { label: "20", kind: "hit" },
+      { label: "D20", kind: "double" },
+    ]);
+    let b = startTraining("aim", "25");
+    b = addAim(addAim(b, "D"), "S");
+    expect(recentThrows(b).map((t) => t.label)).toEqual(["50", "25"]);
+  });
+
+  it("Dookoła tarczy: pudło pokazuje pole, w które celowałeś", () => {
+    let s = startTraining("clock");
+    for (const hit of [true, false, false, true]) s = addClock(s, hit);
+    expect(recentThrows(s).map((t) => t.label)).toEqual(["✓ 1", "✗ 2", "✗ 2", "✓ 2"]);
+    for (let i = 0; i < 19; i++) s = addClock(s, true);
+    expect(recentThrows(s, 1)).toEqual([{ label: "✓ Bull", kind: "hit" }]);
+  });
+
+  it("Kończenie: wynik każdej końcówki", () => {
+    let s = startTraining("checkout");
+    s = addCheckout(addCheckout(s, false), true);
+    if (s.mode !== "checkout") throw new Error();
+    expect(recentThrows(s)).toEqual([
+      { label: `✗ ${s.targets[0]}`, kind: "miss" },
+      { label: `✓ ${s.targets[1]}`, kind: "hit" },
+    ]);
   });
 });

@@ -144,6 +144,8 @@ export function DartBoard({
   const [hover, setHover] = useState<Press | null>(null);
   const [press, setPress] = useState<Press | null>(null);
   const [loupe, setLoupe] = useState(false);
+  // Błysk zapisanego pola – widać, że stuknięcie trafiło (n restartuje animację).
+  const [flash, setFlash] = useState<{ key: string; n: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Tarcza tak duża, jak się da: w poziomie cała wysokość kolumny, w pionie szerokość
@@ -184,7 +186,10 @@ export function DartBoard({
     if (!press) return;
     const p = at(e);
     setPress(null);
-    if (commit && p.key) onPick(p.key, p.x, p.y);
+    if (commit && p.key) {
+      setFlash((f) => ({ key: p.key!, n: (f?.n ?? 0) + 1 }));
+      onPick(p.key, p.x, p.y);
+    }
   }
 
   const live = press ?? hover;
@@ -230,6 +235,15 @@ export function DartBoard({
         }}
       >
         <Drawing finish={finish} hint={hint} targets={targets} hover={live?.key ?? null} marks={marks} />
+        {flash && (
+          <g key={flash.n} className="board-flash" pointerEvents="none" aria-hidden>
+            {flash.key === "0" ? (
+              <path d={RING} fillRule="evenodd" fill="#ffffff" />
+            ) : (
+              SEGMENTS.filter((g) => g.key === flash.key).map((g, i) => <path key={i} d={g.d} fill="#ffffff" />)
+            )}
+          </g>
+        )}
       </svg>
 
       {tip && (
