@@ -6,6 +6,7 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { ButtonLink } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/Field";
 import { PlayerDot } from "@/components/ui/PlayerDot";
+import { FormCard } from "@/components/league/FormCard";
 import { Loading } from "@/components/league/StatusScreens";
 import { fmt } from "@/components/game/FinalStandings";
 import { RECORD_COLOR } from "@/components/achievements/AchievementToasts";
@@ -91,6 +92,10 @@ export function DuelHub() {
                   <span>śr. {fmt(t.average)} / 3 rz.</span>
                 </div>
               </section>
+
+              {summary.form && (
+                <FormCard form={summary.form} title="Twoja forma" source="z 10 ostatnich pojedynków" legend={false} />
+              )}
 
               <section className="flex flex-col gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-muted">Twoi rywale</h2>

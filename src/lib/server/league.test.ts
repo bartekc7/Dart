@@ -218,6 +218,7 @@ describe.skipIf(!url)("liga w bazie", () => {
     expect(bartekStats).toMatchObject({ name: "Bartek", games: 2, wins: 0, avgPlace: 3, series: 2, bestSeries: 50, busts: 0 });
     expect(bartekStats.avgPerSeries).toBe(40);
     expect(bartekStats.recent.map((g) => g.id)).toEqual(["g8", "g1"]);
+    expect(bartekStats.form).toEqual({ ready: false, games: 2, needed: 6 });
     expect((await memberStats(db, me.league.id, ids.Ania)).wins).toBe(2);
     await expect(memberStats(db, me.league.id, "obcy")).rejects.toThrow(/Nie ma takiego gracza/);
     // Historia: obie gry od najnowszej. Usunąć może zapisujący albo organizator, nie inny gracz.

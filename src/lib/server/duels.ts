@@ -13,7 +13,8 @@ import {
   type DuelProfile,
   type DuelStatus,
 } from "../duel";
-import { duelRecords, duelTotals, headToHead, type DuelTotals, type FinishedDuel, type HeadToHead } from "../duelStats";
+import { duelForm, duelRecords, duelTotals, headToHead, type DuelTotals, type FinishedDuel, type HeadToHead } from "../duelStats";
+import type { PlayerForm } from "../game/form";
 import type { RecordsState } from "../game/records";
 import type { Db } from "./db";
 import { cleanName, hashToken, listMembers, newJoinCode, UserError, whoAmI, type Member } from "./league";
@@ -546,6 +547,11 @@ export interface DuelSummary {
   totals: DuelTotals;
   /** Moje rekordy 1 na 1 (stan do liczenia nowych rekordów w trakcie gry). */
   records: RecordsState;
+  /**
+   * Forma z gier 1 na 1 – tylko dla gościa spoza ligi. Gracz ligi ma formę
+   * (liga + 1 na 1) na swojej karcie gracza, więc tu null.
+   */
+  form: PlayerForm | null;
 }
 
 /** Ekran 1 na 1: mój bilans ze wszystkimi i moje rekordy. */
@@ -553,7 +559,14 @@ export async function duelSummary(db: Db, token: string | undefined, exceptId?: 
   const me = await requireProfile(db, token);
   // Bez bieżącej gry: ekran wyników liczy z niej „nowe rekordy” względem wcześniejszych.
   const games = (await finishedDuels(db, me.id)).filter((g) => g.id !== exceptId);
-  return { profile: me, totals: duelTotals(games, me.id), records: duelRecords(games, me.id) };
+  const { rows } = await db.query("select member_id from duel_profiles where id = $1", [me.id]);
+  const guest = !rows[0]?.member_id;
+  return {
+    profile: me,
+    totals: duelTotals(games, me.id),
+    records: duelRecords(games, me.id),
+    form: guest ? duelForm(games, me.id) : null,
+  };
 }
 
 /** Ty vs rywal: bilans, porównanie i ostatnie wspólne gry. */

@@ -1,7 +1,7 @@
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ensureSchema } from "./db";
-import { createLeague, joinLeague, newDeviceToken, requireMe, setMemberLook } from "./league";
+import { createLeague, joinLeague, memberStats, newDeviceToken, requireMe, setMemberLook } from "./league";
 import {
   acceptByCode,
   acceptDuel,
@@ -163,6 +163,11 @@ describe.skipIf(!url)("gry 1 na 1 w bazie", () => {
     const sum = await duelSummary(db, ania);
     expect(sum.totals).toMatchObject({ games: 1, won: 0, lost: 1 });
     expect(sum.records.personal[sum.profile.id].series.value).toBe(100);
+    // Forma: gracz ligi ma ją na karcie gracza (gra 1 na 1 się liczy), gość – tutaj.
+    expect(sum.form).toBeNull();
+    const me = await requireMe(db, ania);
+    expect((await memberStats(db, me.league.id, me.member.id)).form).toEqual({ ready: false, games: 1, needed: 6 });
+    expect((await duelSummary(db, gosc)).form).toEqual({ ready: false, games: 0, needed: 6 });
     const b = (await opponents(db, ania)).find((o) => o.name === "Bartek")!;
     expect(b.lastWon).toBe(false);
     const { rival, h2h } = await rivalSummary(db, ania, b.id);

@@ -3,6 +3,7 @@
  * (stan gry z seriami), bez osobnych tabel. Bez Reacta i bez bazy.
  */
 import { gameDuration, isGameOver } from "./game/engine";
+import { computeForm, gameAverage, type FormGame, type PlayerForm } from "./game/form";
 import { addRecordsGame, emptyRecords, type RecordsState } from "./game/records";
 import type { AchGame } from "./game/achievements";
 import type { GameState } from "./game/types";
@@ -131,4 +132,14 @@ export function headToHead(games: FinishedDuel[], me: string, rival: string, rec
       durationMs: gameDuration(g.state),
     })),
   };
+}
+
+/** Forma z samych gier 1 na 1 (dla gościa spoza ligi; widzi ją tylko on). */
+export function duelForm(games: FinishedDuel[], me: string): PlayerForm {
+  const form: FormGame[] = [];
+  for (const g of games) {
+    const avg = gameAverage(g.state.turns, me);
+    if (avg !== null) form.push({ at: g.endedAt, avg, won: g.winnerId === me, duel: true });
+  }
+  return computeForm(form);
 }
