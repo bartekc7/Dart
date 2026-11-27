@@ -9,6 +9,17 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-27-7",
+    date: "27 listopada",
+    items: [
+      {
+        icon: "👆",
+        title: "Widać każde stuknięcie",
+        text: "Przyciski po dotknięciu na chwilę błyskają, a stuknięte pole tarczy się podświetla. W treningach pod wynikiem widać ostatnie rzuty, także pudła, a najnowszy „wyskakuje”, więc od razu wiesz, że rzutka się zapisała. Telefony z Androidem dodatkowo krótko wibrują.",
+      },
+    ],
+  },
+  {
     id: "2026-11-27-5",
     date: "27 listopada",
     items: [

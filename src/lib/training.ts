@@ -369,3 +369,31 @@ export function isFreeSeriesRecord(list: TrainingRecord[], id: string, darts: st
   const prev = freeTotals(others).bestSeries;
   return freeSummary(darts).bestSeries > prev ? prev : null;
 }
+
+/** Ostatnie wpisy treningu jako „pigułki” pod wynikiem – żeby każde dotknięcie było widać. */
+export type RecentThrow = { label: string; kind: "miss" | "hit" | "double" | "triple" };
+
+export function recentThrows(s: TrainingState, n = 5): RecentThrow[] {
+  const out: RecentThrow[] = [];
+  if (s.mode === "aim") {
+    const bull = s.target === "25";
+    for (const h of s.darts)
+      out.push(
+        h === "0"
+          ? { label: "pudło", kind: "miss" }
+          : bull
+            ? { label: h === "D" ? "50" : "25", kind: h === "D" ? "double" : "hit" }
+            : { label: `${h === "S" ? "" : h}${s.target}`, kind: h === "T" ? "triple" : h === "D" ? "double" : "hit" },
+      );
+  } else if (s.mode === "clock") {
+    let field = 1;
+    for (const hit of s.darts) {
+      const name = field === CLOCK_LAST ? "Bull" : String(field);
+      out.push(hit ? { label: `✓ ${name}`, kind: "hit" } : { label: `✗ ${name}`, kind: "miss" });
+      if (hit) field++;
+    }
+  } else if (s.mode === "checkout") {
+    s.results.forEach((ok, i) => out.push({ label: `${ok ? "✓" : "✗"} ${s.targets[i]}`, kind: ok ? "hit" : "miss" }));
+  }
+  return out.slice(-n);
+}

@@ -15,8 +15,8 @@ import { aimHitFromKey, aimKeys, clockKeys } from "@/lib/game/board";
 import { DartBoard } from "@/components/game/DartBoard";
 import {
   addAim, addCheckout, addClock, addFree, aimPoints, aimSummary, AIM_DARTS, AIM_TARGETS, canUndo, CHECKOUT_ROUNDS, CLOCK_LAST,
-  clockField, dartsWord, endFree, formatScore, freeSummary, FREE_RECORD_MIN_DARTS, isFreeSeriesRecord, isTrainingOver, isTrainingRecord, MODE_BY_ID, MODES, startTraining,
-  trainingScore, trainingStats, trainingVariant, undoTraining, variantLabel, type AimHit, type AimTarget,
+  clockField, dartsWord, recentThrows, endFree, formatScore, freeSummary, FREE_RECORD_MIN_DARTS, isFreeSeriesRecord, isTrainingOver, isTrainingRecord, MODE_BY_ID, MODES, startTraining,
+  trainingScore, trainingStats, trainingVariant, undoTraining, variantLabel, type AimHit, type AimTarget, type RecentThrow,
   type TrainingMode, type TrainingRecord, type TrainingState,
 } from "@/lib/training";
 import { useWakeLock } from "@/lib/useWakeLock";
@@ -257,7 +257,7 @@ function FreePlay({ s, onChange }: { s: Extract<TrainingState, { mode: "free" }>
         <p className="mt-2 min-h-6 text-muted [@media(max-height:700px)]:mt-1 [@media(max-height:700px)]:text-sm">
           {last ? (
             <>
-              Ostatnia: <span className="font-mono font-semibold text-ink">{last.join(" ")}</span> ={" "}
+              Ostatnia: <span key={done} className="tap-pop inline-block font-mono font-semibold text-ink">{last.join(" ")}</span> ={" "}
               <strong className="text-ink">{sum.series[lastIdx]}</strong>
               {sum.bestSeries > 0 && ` · najlepsza ${sum.bestSeries}`}
             </>
@@ -281,8 +281,6 @@ function AimPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "aim" }>; 
   const bull = s.target === "25";
   const [input] = useDartInput();
   const board = input === "board";
-  const label = (h: AimHit) =>
-    h === "0" ? "pudło" : bull ? (h === "D" ? "50" : "25") : `${h === "S" ? "" : h}${s.target}`;
   const keys: { hit: AimHit; text: string; cls: string }[] = bull
     ? [
         { hit: "S", text: "25", cls: "bg-green/20 ring-green" },
@@ -308,16 +306,7 @@ function AimPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "aim" }>; 
           {!bull && ` · T${s.target}: ${sum.triples} · D${s.target}: ${sum.doubles}`}
           {bull && ` · Bull 50: ${sum.doubles}`}
         </p>
-        <p className="mt-3 flex min-h-8 justify-center gap-2">
-          {s.darts.slice(-3).map((d, i) => (
-            <span
-              key={`${s.darts.length}-${i}`}
-              className={`rounded-full px-3 py-0.5 font-mono font-bold ${d === "0" ? "bg-surface-2 text-muted" : d === "T" ? "bg-red text-white" : d === "D" ? "bg-green text-white" : "bg-surface-2"}`}
-            >
-              {label(d)}
-            </span>
-          ))}
-        </p>
+        <Recent s={s} />
       </section>
       <p className="text-center text-sm text-muted">Gdzie trafiła rzutka?</p>
       {board ? (
@@ -364,13 +353,14 @@ function ClockPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "clock" 
           {field === CLOCK_LAST ? "ostatnie pole – 25 albo 50" : `potem ${field + 1 === CLOCK_LAST ? "Bull" : field + 1}`} · trafione{" "}
           {hits} z {CLOCK_LAST}
         </p>
+        <Recent s={s} />
       </section>
       {input === "board" ? (
         <BoardKeys
           targets={targets}
           onPick={(key) => {
             const hit = targets.includes(key);
-            if (hit) buzz(30);
+            buzz(hit ? 30 : 15);
             onChange(addClock(s, hit));
           }}
         />
@@ -386,12 +376,44 @@ function ClockPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "clock" 
         >
           ✓ Trafiona
         </button>
-        <button type="button" className={`${bigKey} bg-surface-2 text-muted ring-line`} onClick={() => onChange(addClock(s, false))}>
+        <button type="button" className={`${bigKey} bg-surface-2 text-muted ring-line`} onClick={() => {
+            buzz(15);
+            onChange(addClock(s, false));
+          }}
+        >
           Pudło
         </button>
       </div>
       )}
     </>
+  );
+}
+
+const CHIP: Record<RecentThrow["kind"], string> = {
+  miss: "bg-surface-2 text-muted ring-1 ring-line",
+  hit: "bg-surface-2 text-ink ring-1 ring-line",
+  double: "bg-green text-white",
+  triple: "bg-red text-white",
+};
+
+/** Ostatnie wpisy: nowy „wyskakuje”, więc każde dotknięcie – także pudło – widać od razu. */
+function Recent({ s }: { s: TrainingState }) {
+  const all = s.mode === "checkout" ? s.results.length : s.mode === "free" ? 0 : s.darts.length;
+  const list = recentThrows(s, 4);
+  return (
+    <p className="mt-3 flex min-h-8 flex-wrap justify-center gap-2 [@media(max-height:700px)]:mt-1.5" aria-label="Ostatnie rzuty">
+      {list.map((t, i) => {
+        const newest = i === list.length - 1;
+        return (
+          <span
+            key={all - list.length + i}
+            className={`rounded-full px-3 py-0.5 font-mono font-bold ${CHIP[t.kind]} ${newest ? "tap-pop ring-2 ring-cream" : "opacity-70"}`}
+          >
+            {t.label}
+          </span>
+        );
+      })}
+    </p>
   );
 }
 
@@ -436,6 +458,7 @@ function CheckoutPlay({
       <p className="text-center text-muted">
         Udane: <strong className="text-ink">{done}</strong> z {s.results.length}
       </p>
+      <Recent s={s} />
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
@@ -447,7 +470,11 @@ function CheckoutPlay({
         >
           ✓ Udało się
         </button>
-        <button type="button" className={`${bigKey} bg-surface-2 text-muted ring-line`} onClick={() => onChange(addCheckout(s, false))}>
+        <button type="button" className={`${bigKey} bg-surface-2 text-muted ring-line`} onClick={() => {
+            buzz(15);
+            onChange(addCheckout(s, false));
+          }}
+        >
           ✗ Nie
         </button>
       </div>
