@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { applyTurn, createGame, endGame, gameDuration, gameEnd, gameStart, isGameOver, standings } from "../game/engine";
+import { computeForm, FORM_GAMES, gameAverage, type FormGame, type PlayerForm } from "../game/form";
 import { rankingWithTrend, RANKING_GAMES, type GameRecord, type RankingRow } from "../game/history";
 import { computeLeagueStats, type LeagueStats } from "../game/leagueStats";
 import { computeProgress, type AchGame, type AchProgress } from "../game/achievements";
@@ -717,6 +718,35 @@ export interface MemberStats {
   hits: Record<string, number>;
   /** Z ilu gier pochodzą trafienia. */
   hitGames: number;
+  /** Forma z 10 ostatnich gier (ligowych i 1 na 1). */
+  form: PlayerForm;
+}
+
+/**
+ * Gry 1 na 1 gracza ligi do liczenia formy (przez jego profil 1 na 1).
+ * Same średnie i wygrane – bez rywali, bo gry 1 na 1 są prywatne.
+ */
+export async function memberDuelFormGames(db: Db, memberId: string): Promise<FormGame[]> {
+  const { rows } = await db.query(
+    `select d.state, d.winner_id, p.id as me, coalesce(d.ended_at, d.updated_at) as ended
+       from duel_profiles p
+       join duels d on d.status = 'finished' and (d.inviter_id = p.id or d.rival_id = p.id)
+      where p.member_id = $1
+      order by ended desc
+      limit ${FORM_GAMES}`,
+    [memberId],
+  );
+  return duelFormGames(rows);
+}
+
+/** Wiersze zakończonych gier 1 na 1 (state, winner_id, me, ended) → gry do formy. */
+export function duelFormGames(rows: { state: unknown; winner_id: string | null; me: string; ended: string | Date }[]): FormGame[] {
+  const out: FormGame[] = [];
+  for (const r of rows) {
+    const avg = gameAverage(((r.state as { turns?: Turn[] } | null)?.turns) ?? [], r.me);
+    if (avg !== null) out.push({ at: new Date(r.ended).getTime(), avg, won: r.winner_id === r.me, duel: true });
+  }
+  return out;
 }
 
 /** Karta gracza: statystyki ze wszystkich gier ligowych gracza. */
@@ -755,6 +785,12 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
     }
     if (counted) hitGames++;
   }
+  const formGames: FormGame[] = [];
+  for (const g of rows) {
+    const avg = gameAverage((g.turns as Turn[]) ?? [], memberId);
+    if (avg !== null) formGames.push({ at: new Date(g.finished_at).getTime(), avg, won: g.place === 1 });
+  }
+  formGames.push(...(await memberDuelFormGames(db, memberId)));
   return {
     id: member.id,
     name: member.name,
@@ -770,6 +806,7 @@ export async function memberStats(db: Db, leagueId: string, memberId: string): P
     busts,
     hits,
     hitGames,
+    form: computeForm(formGames),
     recent: rows.slice(0, 10).map((r) => ({
       id: r.id,
       finishedAt: new Date(r.finished_at).toISOString(),

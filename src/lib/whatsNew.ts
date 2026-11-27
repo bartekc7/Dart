@@ -9,6 +9,17 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-27-5",
+    date: "27 listopada",
+    items: [
+      {
+        icon: "📈",
+        title: "Forma gracza",
+        text: "Na karcie gracza (dotknij go w rankingu) jest nowa sekcja „Forma”. Pokazuje, czy w 5 ostatnich grach rzucasz lepiej (↗), gorzej (↘) czy podobnie (→) niż w 5 wcześniejszych, na podstawie średniej na serię. Liczą się gry ligowe i 1 na 1, a wykres pokazuje 10 ostatnich gier. Forma pojawia się po 6 grach. Ranking zostaje bez zmian.",
+      },
+    ],
+  },
+  {
     id: "2026-11-27-4",
     date: "27 listopada",
     items: [

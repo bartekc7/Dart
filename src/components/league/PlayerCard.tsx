@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { playerColor } from "@/lib/colors";
 import type { MemberStats } from "@/lib/server/league";
 import { useLeague } from "./LeagueProvider";
+import { FormCard } from "./FormCard";
 import { HitMap } from "./HitMap";
 import { MyGames } from "./MyGames";
 import { Loading } from "./StatusScreens";
@@ -77,6 +78,7 @@ export function PlayerCard({ id }: { id: string }) {
             ))}
           </section>
           <p className="-mt-3 text-xs text-muted">Ze wszystkich gier ligowych (bez gier w pojedynkę).</p>
+          {stats.form && <FormCard form={stats.form} source="z 10 ostatnich gier (liga + 1 na 1)" />}
           <RecordsTile memberId={stats.id} />
           <AchievementsTile memberId={stats.id} />
           <HitMap hits={stats.hits} games={stats.hitGames} />
