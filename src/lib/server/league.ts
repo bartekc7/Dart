@@ -519,16 +519,18 @@ export async function publishLiveGame(db: Db, me: Me, input: GameInput & { rev?:
   const rev = Number(input.rev);
   if (!Number.isSafeInteger(rev) || rev < 0) throw new UserError("Niepełne dane gry.");
   const state = await replayGame(db, me, input);
-  const { rowCount } = await db.query(
+  const { rowCount, rows } = await db.query(
     `insert into live_games (id, league_id, state, scorer_id, finished, rev)
      values ($1, $2, $3, $4, $5, $6)
      on conflict (id) do update
        set state = excluded.state, scorer_id = excluded.scorer_id, finished = excluded.finished,
            rev = excluded.rev, updated_at = now()
-     where live_games.league_id = excluded.league_id and live_games.rev < excluded.rev`,
+     where live_games.league_id = excluded.league_id and live_games.rev < excluded.rev
+     returning (xmax = 0) as inserted`,
     [state.id, me.league.id, JSON.stringify(state), me.member.id, isGameOver(state), rev],
   );
-  return { updated: rowCount === 1 };
+  // `created` – pierwszy stan tej gry (start gry w rejestrze zdarzeń).
+  return { updated: rowCount === 1, created: rows[0]?.inserted === true };
 }
 
 const LIVE_SELECT = `
@@ -590,7 +592,7 @@ export async function recentGamesOf(db: Db, memberId: string, limit = 5): Promis
  * zawsze spójne z zasadami. Ponowny zapis tej samej gry (np. po cofnięciu i
  * poprawce) zastępuje poprzedni.
  */
-export async function saveGame(db: Db, me: Me, input: GameInput) {
+export async function saveGame(db: Db, me: Me, input: GameInput): Promise<{ created: boolean }> {
   const state = await replayGame(db, me, input);
   const id = state.id!;
   const target = state.settings.target;
@@ -618,6 +620,7 @@ export async function saveGame(db: Db, me: Me, input: GameInput) {
       s.place,
     ]);
   }
+  return { created: !rows[0] };
 }
 
 /**
@@ -692,8 +695,13 @@ export async function leagueRanking(db: Db, leagueId: string): Promise<{ rows: R
 }
 
 /** Przerwana gra znika z podglądu (np. „Zacznij nową grę” w trakcie). */
-export async function deleteLiveGame(db: Db, me: Me, id: string) {
-  await db.query("delete from live_games where id = $1 and league_id = $2", [id, me.league.id]);
+export async function deleteLiveGame(db: Db, me: Me, id: string): Promise<{ cancelled: boolean }> {
+  const { rows } = await db.query("delete from live_games where id = $1 and league_id = $2 returning finished", [
+    id,
+    me.league.id,
+  ]);
+  // Usunięcie niezakończonej gry = anulowanie (do rejestru zdarzeń).
+  return { cancelled: rows.length > 0 && !rows[0].finished };
 }
 
 export interface MemberStats {

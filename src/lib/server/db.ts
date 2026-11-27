@@ -150,6 +150,22 @@ create index if not exists duels_inviter on duels (inviter_id, status);
 create index if not exists duels_rival on duels (rival_id, status);
 create index if not exists duels_open on duels (status) where status in ('pending', 'active');
 create index if not exists duels_rematch on duels (rematch_of) where rematch_of is not null;
+-- Rejestr zdarzeń dla panelu admina: kto (liga/gracz/gość/telefon), co i kiedy – bez wyników.
+-- Bez kluczy obcych, żeby zapis nigdy nie zawiódł; wpisy starsze niż 90 dni są kasowane.
+create table if not exists events (
+  id bigserial primary key,
+  at timestamptz not null default now(),
+  type text not null,
+  device text,
+  member_id text,
+  league_id text,
+  profile_id text
+);
+create index if not exists events_at on events (at desc);
+create index if not exists events_league_at on events (league_id, at desc);
+create index if not exists events_member_at on events (member_id, at desc);
+create index if not exists events_device_type on events (device, type, at desc);
+delete from events where at < now() - interval '90 days';
 `;
 
 export async function ensureSchema(db: Db) {

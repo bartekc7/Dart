@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { deviceToken, handle, readJson } from "@/lib/server/http";
+import { deviceToken, handle, readJson, track } from "@/lib/server/http";
 import { requireMe } from "@/lib/server/league";
 import { myTrainings, saveTraining } from "@/lib/server/training";
 
@@ -15,7 +15,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handle(async (db) => {
     const me = await requireMe(db, deviceToken(req));
-    await saveTraining(db, me, await readJson(req));
+    const { created } = await saveTraining(db, me, await readJson(req));
+    if (created) track(db, { type: "training_end", memberId: me.member.id, token: deviceToken(req) });
     return NextResponse.json({ ok: true });
   });
 }

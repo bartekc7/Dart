@@ -20,6 +20,7 @@ import {
   type TrainingMode, type TrainingRecord, type TrainingState,
 } from "@/lib/training";
 import { useWakeLock } from "@/lib/useWakeLock";
+import { trackEvent } from "@/lib/track";
 import { RulesSheet } from "./RulesSheet";
 import { useMyTrainings } from "./useTrainings";
 
@@ -48,7 +49,10 @@ export function TrainingScreen() {
       </div>
     );
   }
-  const start = (mode: TrainingMode, target?: AimTarget) => setStored({ id: newId(), state: startTraining(mode, target) });
+  const start = (mode: TrainingMode, target?: AimTarget) => {
+    setStored({ id: newId(), state: startTraining(mode, target) });
+    trackEvent("training_start");
+  };
   if (!stored)
     return (
       <>

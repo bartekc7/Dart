@@ -1,6 +1,7 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { getDb, NoDatabaseError, type Db } from "./db";
 import { newDeviceToken, UserError } from "./league";
+import { logEvent, type EventInput } from "./events";
 
 /** Identyfikator urządzenia: losowy sekret w ciasteczku (w bazie trzymamy tylko jego skrót). */
 export const DEVICE_COOKIE = "dart_device";
@@ -46,5 +47,18 @@ export async function readJson(req: NextRequest): Promise<Record<string, unknown
     return body && typeof body === "object" ? body : {};
   } catch {
     return {};
+  }
+}
+
+/**
+ * Zapis do rejestru zdarzeń po wysłaniu odpowiedzi – nie spowalnia aplikacji
+ * i nie psuje jej przy błędzie (logEvent sam łapie błędy).
+ */
+export function track(db: Db, ev: EventInput) {
+  const run = () => logEvent(db, ev).then(() => undefined);
+  try {
+    after(run);
+  } catch {
+    void run();
   }
 }

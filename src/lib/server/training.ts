@@ -47,7 +47,7 @@ function replay(raw: unknown): TrainingState {
 }
 
 /** Zapis zakończonego treningu. Ponowny zapis tego samego id nadpisuje (np. po cofnięciu rzutki). */
-export async function saveTraining(db: Db, me: Me, input: { id?: unknown; data?: unknown }) {
+export async function saveTraining(db: Db, me: Me, input: { id?: unknown; data?: unknown }): Promise<{ created: boolean }> {
   const id = typeof input.id === "string" ? input.id.slice(0, 64) : "";
   if (!id) throw new UserError("Brak identyfikatora treningu.");
   const s = replay(input.data);
@@ -62,6 +62,7 @@ export async function saveTraining(db: Db, me: Me, input: { id?: unknown; data?:
        score = excluded.score, data = excluded.data, finished_at = now()`,
     [id, me.league.id, me.member.id, s.mode, trainingVariant(s), trainingScore(s), JSON.stringify(s), started],
   );
+  return { created: !rows[0] };
 }
 
 /** Treningi gracza (tylko własne – nikt inny ich nie widzi), od najnowszego. */
