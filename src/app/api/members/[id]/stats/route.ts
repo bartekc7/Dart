@@ -8,5 +8,5 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/members/[id]
   return handle(async (db) => {
     const me = await requireMe(db, deviceToken(req));
     return NextResponse.json(await memberStats(db, me.league.id, id));
-  });
+  }, req);
 }

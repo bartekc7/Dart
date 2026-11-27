@@ -2,6 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { getDb, NoDatabaseError, type Db } from "./db";
 import { newDeviceToken, UserError } from "./league";
 import { logEvent, type EventInput } from "./events";
+import { recordError } from "./errors";
 
 /** Identyfikator urządzenia: losowy sekret w ciasteczku (w bazie trzymamy tylko jego skrót). */
 export const DEVICE_COOKIE = "dart_device";
@@ -28,16 +29,35 @@ export function withDeviceCookie(res: NextResponse, token: string) {
   return res;
 }
 
-/** Wspólna obsługa: połączenie z bazą i zamiana błędów na czytelne odpowiedzi JSON. */
-export async function handle(fn: (db: Db) => Promise<NextResponse>): Promise<NextResponse> {
+/**
+ * Wspólna obsługa: połączenie z bazą i zamiana błędów na czytelne odpowiedzi JSON.
+ * Nieoczekiwany błąd trafia też do rejestru błędów panelu admina (po odpowiedzi).
+ */
+export async function handle(fn: (db: Db) => Promise<NextResponse>, req?: NextRequest): Promise<NextResponse> {
+  let db: Db | null = null;
   try {
-    return await fn(await getDb());
+    db = await getDb();
+    return await fn(db);
   } catch (e) {
     if (e instanceof UserError) return NextResponse.json({ error: e.message }, { status: e.status });
     if (e instanceof NoDatabaseError)
       return NextResponse.json({ error: e.message, code: "no_database" }, { status: 503 });
     console.error(e);
+    if (db) {
+      const target = db;
+      later(() => recordError(target, { error: e, path: req?.nextUrl.pathname, method: req?.method, source: "api" }));
+    }
     return NextResponse.json({ error: "Coś poszło nie tak. Spróbuj ponownie." }, { status: 500 });
+  }
+}
+
+/** Praca po wysłaniu odpowiedzi; poza żądaniem (np. w testach) – od razu. */
+function later(run: () => Promise<unknown>) {
+  const task = () => run().then(() => undefined);
+  try {
+    after(task);
+  } catch {
+    void task();
   }
 }
 
@@ -55,10 +75,5 @@ export async function readJson(req: NextRequest): Promise<Record<string, unknown
  * i nie psuje jej przy błędzie (logEvent sam łapie błędy).
  */
 export function track(db: Db, ev: EventInput) {
-  const run = () => logEvent(db, ev).then(() => undefined);
-  try {
-    after(run);
-  } catch {
-    void run();
-  }
+  later(() => logEvent(db, ev));
 }

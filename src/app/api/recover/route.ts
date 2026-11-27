@@ -10,5 +10,5 @@ export async function POST(req: NextRequest) {
     await recoverWithCode(db, token, body.code);
     track(db, { type: "recover", token });
     return withDeviceCookie(NextResponse.json({ ok: true }), token);
-  });
+  }, req);
 }

@@ -9,5 +9,5 @@ export async function POST(req: NextRequest) {
     await createLeague(db, token, body.leagueName, body.playerName, body.look);
     track(db, { type: "league_create", token });
     return withDeviceCookie(NextResponse.json({ ok: true }), token);
-  });
+  }, req);
 }

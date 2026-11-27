@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     const { created } = await saveGame(db, me, await readJson(req));
     if (created) track(db, { type: "game_end", memberId: me.member.id, token: deviceToken(req) });
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }
 
 /** Historia gier ligi. */
@@ -17,5 +17,5 @@ export async function GET(req: NextRequest) {
   return handle(async (db) => {
     const me = await requireMe(db, deviceToken(req));
     return NextResponse.json({ games: await leagueGames(db, me.league.id) });
-  });
+  }, req);
 }

@@ -39,3 +39,17 @@ export function isAdminSession(cookie: string | undefined, key: string | null): 
   if (!key || !cookie) return false;
   return same(cookie, sessionValue(key));
 }
+
+/**
+ * Jednorazowy w obrębie sesji token do akcji zapisującej (ochrona przed CSRF
+ * oprócz ciasteczka SameSite=Strict i sprawdzania Origin przez Next.js).
+ * Wiąże akcję z konkretnym obiektem, np. „usuń ligę X”.
+ */
+export function actionToken(key: string, action: string, target: string): string {
+  return createHmac("sha256", key).update(`dart-admin-action-v1\n${action}\n${target}`).digest("base64url");
+}
+
+export function checkActionToken(input: unknown, key: string | null, action: string, target: string): boolean {
+  if (!key || typeof input !== "string" || !input) return false;
+  return same(input, actionToken(key, action, target));
+}

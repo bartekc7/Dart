@@ -9,5 +9,5 @@ export async function POST(req: NextRequest) {
     const body = await readJson(req);
     await clearLeague(db, me, body.mode, body.leagueName);
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }

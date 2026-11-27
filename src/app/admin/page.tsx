@@ -30,5 +30,5 @@ async function AdminGate({ searchParams }: { searchParams: PageProps<"/admin">["
     if (!key || params.zaloguj === undefined) notFound();
     return <AdminLogin error={params.blad !== undefined} />;
   }
-  return <AdminPanel leagueId={one(params.liga)} memberId={one(params.gracz)} />;
+  return <AdminPanel leagueId={one(params.liga)} memberId={one(params.gracz)} deleted={one(params.usunieto)} />;
 }

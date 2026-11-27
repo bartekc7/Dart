@@ -9,5 +9,5 @@ export async function POST(req: NextRequest) {
     const body = await readJson(req);
     await setEntryMode(db, me, body.entryMode);
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }

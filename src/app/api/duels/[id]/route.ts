@@ -8,5 +8,5 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/duels/[id]">
   return handle(async (db) => {
     const me = await requireProfile(db, deviceToken(req));
     return NextResponse.json({ duel: await getDuel(db, me, id), me: me.id });
-  });
+  }, req);
 }

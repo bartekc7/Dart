@@ -7,5 +7,5 @@ export async function GET(req: NextRequest) {
   return handle(async (db) => {
     const me = await requireMe(db, deviceToken(req));
     return NextResponse.json(await leagueStats(db, me.league.id));
-  });
+  }, req);
 }

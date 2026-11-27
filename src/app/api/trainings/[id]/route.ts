@@ -10,5 +10,5 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<"/api/trainings
     const { id } = await ctx.params;
     await deleteTraining(db, me, decodeURIComponent(id));
     return NextResponse.json({ ok: true });
-  });
+  }, req);
 }

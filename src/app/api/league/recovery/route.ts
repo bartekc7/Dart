@@ -8,5 +8,5 @@ export async function POST(req: NextRequest) {
     const me = await requireMe(db, deviceToken(req));
     const code = await createRecoveryCode(db, me);
     return NextResponse.json({ code });
-  });
+  }, req);
 }

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/join/[code]"
       /** Kolory i ikonki, które mają już gracze ligi (do wyszarzenia). */
       taken: await takenLooks(db, league.id),
     });
-  });
+  }, req);
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext<"/api/join/[code]">) {
@@ -27,5 +27,5 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/join/[code]
     await joinLeague(db, token, code, body.name, body.look);
     track(db, { type: "league_join", token });
     return withDeviceCookie(NextResponse.json({ ok: true }), token);
-  });
+  }, req);
 }

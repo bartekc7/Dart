@@ -1,19 +1,30 @@
 import Link from "next/link";
 import { adminLogin, adminLogout } from "@/app/admin/actions";
 import { agoLabel, eventLabel, EVENTS_KEEP_DAYS, type DayCount } from "@/lib/events";
+import { formatBytes } from "@/lib/bytes";
+import { deployInfo, type DeployInfo } from "@/lib/deploy";
+import { ERRORS_KEEP_DAYS } from "@/lib/errors";
 import {
+  adminDbSize,
   adminEvents,
+  adminInactiveLeagues,
   adminLeagues,
   adminMembers,
   adminSummary,
   ADMIN_EVENTS_LIMIT,
+  INACTIVE_DAYS,
+  type AdminDbSize,
   type AdminEvent,
   type AdminLeague,
   type AdminMember,
   type AdminSummary,
+  type InactiveLeague,
 } from "@/lib/server/admin";
+import { actionToken, adminKey } from "@/lib/server/adminAuth";
 import { getDb } from "@/lib/server/db";
+import { adminErrors, pruneErrors, type AdminErrors } from "@/lib/server/errors";
 import { pruneEvents } from "@/lib/server/events";
+import { DeleteLeagueForm } from "./DeleteLeagueForm";
 
 const card = "rounded-2xl bg-surface p-4 ring-1 ring-line";
 const title = "mb-3 text-sm font-semibold uppercase tracking-wide text-muted";
@@ -39,24 +50,36 @@ export function AdminLogin({ error }: { error: boolean }) {
   );
 }
 
-export async function AdminPanel({ leagueId, memberId }: { leagueId?: string; memberId?: string }) {
-  let data: { leagues: AdminLeague[]; members: AdminMember[]; events: AdminEvent[]; summary: AdminSummary };
+export async function AdminPanel({ leagueId, memberId, deleted }: { leagueId?: string; memberId?: string; deleted?: string }) {
+  let data: {
+    leagues: AdminLeague[];
+    members: AdminMember[];
+    events: AdminEvent[];
+    summary: AdminSummary;
+    errors: AdminErrors;
+    dbSize: AdminDbSize;
+    inactive: InactiveLeague[];
+  };
   try {
     const db = await getDb();
-    await pruneEvents(db);
-    const [leagues, members, events, summary] = await Promise.all([
+    await Promise.all([pruneEvents(db), pruneErrors(db)]);
+    const [leagues, members, events, summary, errors, dbSize, inactive] = await Promise.all([
       adminLeagues(db),
       leagueId ? adminMembers(db, leagueId) : Promise.resolve([]),
       adminEvents(db, { leagueId, memberId }),
       adminSummary(db),
+      adminErrors(db),
+      adminDbSize(db),
+      adminInactiveLeagues(db),
     ]);
-    data = { leagues, members, events, summary };
+    data = { leagues, members, events, summary, errors, dbSize, inactive };
   } catch (e) {
     console.error(e);
     return <p className="py-10 text-center text-muted">Nie udało się wczytać danych z bazy.</p>;
   }
-  const { leagues, members, events, summary } = data;
+  const { leagues, members, events, summary, errors, dbSize, inactive } = data;
   const now = new Date();
+  const key = adminKey()!;
   const league = leagues.find((l) => l.id === leagueId);
   const member = members.find((m) => m.id === memberId);
 
@@ -72,7 +95,18 @@ export async function AdminPanel({ leagueId, memberId }: { leagueId?: string; me
         </form>
       </header>
 
+      {deleted && (
+        <p role="status" className="rounded-2xl bg-green/15 px-4 py-3 text-sm ring-1 ring-green/40">
+          Usunięto ligę <b>{deleted}</b> razem z jej danymi.
+        </p>
+      )}
+
       <Summary summary={summary} />
+
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Health errors={errors} now={now} />
+        <Version info={deployInfo()} now={now} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-6">
@@ -167,7 +201,239 @@ export async function AdminPanel({ leagueId, memberId }: { leagueId?: string; me
           </p>
         </section>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <InactiveLeagues
+          leagues={inactive}
+          now={now}
+          tokens={Object.fromEntries(inactive.map((l) => [l.id, actionToken(key, "delete-league", l.id)]))}
+        />
+        <DbSize size={dbSize} now={now} />
+      </div>
     </div>
+  );
+}
+
+function Health({ errors, now }: { errors: AdminErrors; now: Date }) {
+  const ok = errors.last24h === 0;
+  return (
+    <section aria-labelledby="health-title" className={card}>
+      <h2 id="health-title" className={title}>
+        Zdrowie aplikacji
+      </h2>
+      <div className={`mb-3 flex items-center gap-3 rounded-xl px-3 py-3 ${ok ? "bg-green/15 ring-1 ring-green/40" : "bg-red/15 ring-1 ring-red/40"}`}>
+        <span aria-hidden className="text-2xl">
+          {ok ? "✅" : "⚠️"}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">
+            {ok ? "Brak błędów w ostatnich 24 h" : `${errors.last24h} ${plural(errors.last24h, "błąd", "błędy", "błędów")} w ostatnich 24 h`}
+          </span>
+          <span className="block text-xs text-muted">w ostatnich 7 dniach: {errors.last7d}</span>
+        </span>
+      </div>
+      {errors.recent.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-line p-4 text-center text-sm text-muted">Nie zapisano żadnych błędów serwera.</p>
+      ) : (
+        <ul className="flex max-h-80 flex-col divide-y divide-line overflow-y-auto">
+          {errors.recent.map((e) => (
+            <li key={e.id} className="flex items-start gap-3 py-2">
+              <span className="min-w-0 flex-1">
+                <span className="block break-words font-mono text-xs">{e.message}</span>
+                <span className="block truncate text-xs text-muted">
+                  {e.kind}
+                  {e.path && (
+                    <>
+                      {" · "}
+                      <span className="font-mono">
+                        {e.method ? `${e.method} ` : ""}
+                        {e.path}
+                      </span>
+                    </>
+                  )}
+                  {e.source && ` · ${e.source}`}
+                </span>
+              </span>
+              <time dateTime={e.at} className="whitespace-nowrap pt-0.5 text-xs text-muted">
+                {agoLabel(e.at, now)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 text-xs text-muted">
+        Nieoczekiwane błędy API, stron i akcji serwera. Bez danych graczy: rodzaj błędu, skrócony komunikat i ścieżka bez identyfikatorów.
+        Wpisy starsze niż {ERRORS_KEEP_DAYS} dni kasują się same.
+      </p>
+    </section>
+  );
+}
+
+function Version({ info, now }: { info: DeployInfo; now: Date }) {
+  const rows: { label: string; value: React.ReactNode }[] = [
+    {
+      label: "Środowisko",
+      value: (
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${info.env === "production" ? "bg-green/20" : "bg-cream/20"}`}>{info.env}</span>
+      ),
+    },
+    {
+      label: "Wdrożenie",
+      value: info.builtAt ? (
+        <time dateTime={info.builtAt}>
+          {agoLabel(info.builtAt, now)} <span className="text-muted">({fullDate(info.builtAt)})</span>
+        </time>
+      ) : (
+        "—"
+      ),
+    },
+    {
+      label: "Commit",
+      value: info.shortSha ? (
+        info.commitUrl ? (
+          <a href={info.commitUrl} target="_blank" rel="noreferrer" className="font-mono underline decoration-line underline-offset-2">
+            {info.shortSha}
+          </a>
+        ) : (
+          <span className="font-mono">{info.shortSha}</span>
+        )
+      ) : (
+        "—"
+      ),
+    },
+    {
+      label: "PR",
+      value: info.pr ? (
+        info.prUrl ? (
+          <a href={info.prUrl} target="_blank" rel="noreferrer" className="font-mono underline decoration-line underline-offset-2">
+            #{info.pr}
+          </a>
+        ) : (
+          `#${info.pr}`
+        )
+      ) : (
+        "—"
+      ),
+    },
+    { label: "Gałąź", value: info.branch ? <span className="font-mono">{info.branch}</span> : "—" },
+    { label: "Region", value: info.region ? <span className="font-mono">{info.region}</span> : "—" },
+  ];
+  return (
+    <section aria-labelledby="version-title" className={card}>
+      <h2 id="version-title" className={title}>
+        Wersja na produkcji
+      </h2>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+        {rows.map((r) => (
+          <div key={r.label} className="contents">
+            <dt className="text-muted">{r.label}</dt>
+            <dd className="min-w-0 break-words">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {info.message && <p className="mt-3 break-words rounded-xl bg-surface-2 px-3 py-2 text-sm">{info.message}</p>}
+      {!info.sha && <p className="mt-3 text-xs text-muted">Brak danych z Vercela – to wersja uruchomiona lokalnie.</p>}
+    </section>
+  );
+}
+
+function fullDate(at: string) {
+  return new Intl.DateTimeFormat("pl-PL", {
+    timeZone: "Europe/Warsaw",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(at));
+}
+
+function DbSize({ size, now }: { size: AdminDbSize; now: Date }) {
+  const events = size.tables.find((t) => t.table === "events");
+  const tiles = [
+    { label: "cała baza", value: formatBytes(size.databaseBytes ?? size.tablesBytes) },
+    { label: "wierszy razem", value: size.totalRows.toLocaleString("pl-PL") },
+    { label: "rejestr zdarzeń", value: formatBytes(events?.bytes ?? null) },
+  ];
+  return (
+    <section aria-labelledby="db-title" className={card}>
+      <h2 id="db-title" className={title}>
+        Rozmiar bazy
+      </h2>
+      <div className="mb-3 grid grid-cols-3 gap-2">
+        {tiles.map((t) => (
+          <div key={t.label} className="flex flex-col items-center rounded-xl bg-surface-2 px-2 py-2.5 text-center">
+            <span className="font-mono text-lg font-bold tabular-nums">{t.value}</span>
+            <span className="mt-0.5 text-xs leading-tight text-muted">{t.label}</span>
+          </div>
+        ))}
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-left text-xs text-muted">
+            <th className="pb-1 font-normal">Tabela</th>
+            <th className="pb-1 text-right font-normal">Wiersze</th>
+            <th className="pb-1 text-right font-normal">Rozmiar</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {size.tables.map((t) => (
+            <tr key={t.table}>
+              <td className="py-1.5 pr-2">
+                <span className="block">{t.label}</span>
+                <span className="block font-mono text-[11px] text-muted">{t.table}</span>
+              </td>
+              <td className="py-1.5 text-right font-mono tabular-nums">{t.rows.toLocaleString("pl-PL")}</td>
+              <td className="py-1.5 pl-2 text-right font-mono whitespace-nowrap tabular-nums">{formatBytes(t.bytes)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-xs text-muted">
+        Rozmiar tabeli liczy dane razem z indeksami.
+        {events && ` Rejestr zdarzeń: ${events.rows.toLocaleString("pl-PL")} ${plural(events.rows, "wpis", "wpisy", "wpisów")}`}
+        {size.eventsSince && `, najstarszy ${agoLabel(size.eventsSince, now)}`}
+        {events && "."}
+      </p>
+    </section>
+  );
+}
+
+function InactiveLeagues({ leagues, now, tokens }: { leagues: InactiveLeague[]; now: Date; tokens: Record<string, string> }) {
+  return (
+    <section aria-labelledby="inactive-title" className={card}>
+      <h2 id="inactive-title" className={title}>
+        Nieaktywne ligi ({leagues.length})
+      </h2>
+      {leagues.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-line p-4 text-center text-sm text-muted">
+          Wszystkie ligi grały w ostatnich {INACTIVE_DAYS} dniach.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {leagues.map((l) => (
+            <li key={l.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-surface-2 px-3 py-2.5">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold">{l.name}</span>
+                <span className="block text-xs text-muted">
+                  {l.lastGame ? `ostatnia gra ${agoLabel(l.lastGame, now)}` : "nigdy nie grali"} · założona {agoLabel(l.createdAt, now)}
+                </span>
+                <span className="block text-xs text-muted">
+                  {l.players} {plural(l.players, "gracz", "graczy", "graczy")} · {l.games} {plural(l.games, "gra", "gry", "gier")} · {l.trainings}{" "}
+                  {plural(l.trainings, "trening", "treningi", "treningów")}
+                  {l.lastSeen && ` · telefon ${agoLabel(l.lastSeen, now)}`}
+                </span>
+              </span>
+              <DeleteLeagueForm leagueId={l.id} name={l.name} token={tokens[l.id]} />
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-3 text-xs text-muted">
+        Liga jest nieaktywna, gdy od {INACTIVE_DAYS} dni nie było w niej gry ani treningu i nie trwa żadna gra. Usunięcie kasuje ligę razem
+        z graczami, telefonami, grami i treningami. Inne ligi i gry 1 na 1 zostają bez zmian.
+      </p>
+    </section>
   );
 }
 
@@ -197,7 +463,7 @@ function EventList({ events, now, showLeague }: { events: AdminEvent[]; now: Dat
     <ul className="flex flex-col divide-y divide-line">
       {events.map((e) => {
         const { label, icon } = eventLabel(e.type);
-        const who = e.who ?? (e.device ? `telefon ${e.device.slice(0, 6)}` : "nieznany");
+        const who = e.who ?? (e.detail ? e.detail : e.device ? `telefon ${e.device.slice(0, 6)}` : e.type.startsWith("admin_") ? "admin" : "nieznany");
         return (
           <li key={e.id} className="flex items-start gap-3 py-2">
             <span aria-hidden className="w-6 pt-0.5 text-center">

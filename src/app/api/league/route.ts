@@ -14,5 +14,5 @@ export async function GET(req: NextRequest) {
       recentGamesOf(db, me.member.id),
     ]);
     return NextResponse.json({ me, members, inactive, ranking, myGames });
-  });
+  }, req);
 }

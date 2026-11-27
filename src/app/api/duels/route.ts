@@ -9,5 +9,5 @@ export async function POST(req: NextRequest) {
     const out = await createDuel(db, deviceToken(req), body);
     track(db, { type: "duel_invite", token: deviceToken(req) });
     return NextResponse.json(out);
-  });
+  }, req);
 }
