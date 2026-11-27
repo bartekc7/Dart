@@ -23,7 +23,7 @@ export function useDuelRecords(duelId: string, state: GameState | null, meId: st
     };
   }, [duelId]);
   return useMemo(
-    () => (state && base ? addRecordsGame(base, soloView(state, meId, Date.now())).events : null),
+    () => (state && base ? addRecordsGame(base, soloView(state, meId, state.turns.at(-1)?.at ?? state.startedAt ?? 0)).events : null),
     [state, base, meId],
   );
 }
