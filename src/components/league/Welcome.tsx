@@ -1,7 +1,13 @@
+"use client";
+
 import { ButtonLink } from "@/components/ui/Button";
+import { DuelButton } from "@/components/duel/DuelHome";
+import { useDuels } from "@/components/duel/DuelProvider";
 
 /** Ekran dla telefonu, który nie należy jeszcze do żadnej ligi. */
 export function Welcome() {
+  // Gość, który grał już 1 na 1 (przyszedł z linku), ma tu wejście do swoich gier.
+  const guest = !!useDuels()?.profile;
   return (
     <div className="flex flex-1 flex-col">
       <section className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
@@ -13,6 +19,7 @@ export function Welcome() {
         </p>
       </section>
       <div className="flex flex-col gap-3">
+        {guest && <DuelButton />}
         <ButtonLink href="/dolacz">📷 Dołącz do ligi</ButtonLink>
         <ButtonLink href="/liga/nowa" variant="secondary">
           Załóż ligę

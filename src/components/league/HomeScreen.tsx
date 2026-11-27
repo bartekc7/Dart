@@ -11,6 +11,7 @@ import { InstallHint } from "@/components/InstallHint";
 import { HomeHeader } from "./HomeHeader";
 import { Welcome } from "./Welcome";
 import { WhatsNewPopup } from "@/components/WhatsNew";
+import { DuelBanner } from "@/components/duel/DuelHome";
 
 export function HomeScreen() {
   const { state } = useLeague();
@@ -28,6 +29,7 @@ export function HomeScreen() {
       <>
         <HomeHeader />
         <WhatsNewPopup />
+        <DuelBanner />
         <Welcome />
       </>
     );
@@ -44,6 +46,7 @@ export function HomeScreen() {
         <div className="contents md:flex md:flex-col md:gap-6">
           <LiveBanners myId={me.member.id} />
           <div className="flex flex-col gap-3">
+            <DuelBanner />
             <HomeActions />
             {me.member.isOrganizer && !me.league.hasRecoveryCode && (
               <Link

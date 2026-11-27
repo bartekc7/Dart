@@ -9,6 +9,17 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-27-2",
+    date: "27 listopada",
+    items: [
+      {
+        icon: "⚔️",
+        title: "Gry 1 na 1",
+        text: "Nowy przycisk „⚔️ 1 na 1” na starcie. Wybierz rywala z ligi, a zaproszenie wyskoczy w jego aplikacji. Każdy wpisuje swoje rzutki na swoim telefonie, gdy ma kolej, a drugi widzi je na żywo. Te gry nie liczą się do rankingu ligi i widzicie je tylko wy dwoje. Kogoś spoza ligi zaprosisz za pierwszym razem linkiem albo kodem QR.",
+      },
+    ],
+  },
+  {
     id: "2026-11-27",
     date: "27 listopada",
     items: [

@@ -116,3 +116,6 @@ export function useVoice(): [boolean, (on: boolean) => void] {
   const [raw, set] = useStored<boolean>(VOICE_KEY);
   return [raw === true, (on) => set(on)];
 }
+
+/** Jak ten telefon wpisuje punkty w grach 1 na 1 (każdy gracz wybiera u siebie). */
+export const useDuelEntryMode = () => useStored<"sum" | "darts">("dart:duelEntry");
