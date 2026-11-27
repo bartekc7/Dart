@@ -9,6 +9,17 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-27-4",
+    date: "27 listopada",
+    items: [
+      {
+        icon: "🎯",
+        title: "Klikalna tarcza",
+        text: "Rzutki możesz teraz wpisywać, klikając w pola tarczy zamiast w przyciski 1–20. Na komputerze i tablecie tarcza włącza się sama, na telefonie wybierzesz ją w Opcjach › Wpisywanie rzutek. Pola, którymi kończysz, świecą na zielono, a czarny pierścień z numerami to pudło. Na telefonie przytrzymaj palec, żeby zobaczyć lupę, i puść na właściwym polu.",
+      },
+    ],
+  },
+  {
     id: "2026-11-27-3",
     date: "27 listopada",
     items: [
