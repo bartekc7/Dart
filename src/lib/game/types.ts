@@ -14,6 +14,13 @@ export interface Player {
 export interface GameSettings {
   /** Liczba punktów do zdobycia „do równego”, np. 101. */
   target: number;
+  /**
+   * Wyrównana runda (1 na 1): gdy ktoś skończy, runda gra się do końca –
+   * gracze po nim w kolejce rzucają jeszcze swoją serię. Gra kończy się
+   * z końcem tej rundy; kto skończył w niej, wygrywa (kilku = remis).
+   * Brak = jak dotąd: gra kończy się, gdy został jeden gracz.
+   */
+  evenRounds?: boolean;
 }
 
 export interface Turn {

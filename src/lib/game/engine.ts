@@ -15,7 +15,10 @@ export function newId(): string {
  * - seria przekraczająca cel się nie liczy,
  * - po zakończeniu gracza reszta gra dalej, a ukończeni są pomijani w kolejce,
  * - gra kończy się, gdy został jeden gracz (zajmuje ostatnie miejsce)
- *   albo, przy grze solo, gdy jedyny gracz trafi w cel.
+ *   albo, przy grze solo, gdy jedyny gracz trafi w cel,
+ * - z wyrównaną rundą (settings.evenRounds) gra kończy się z końcem rundy,
+ *   w której ktoś skończył: reszta rzuca jeszcze swoją serię, a kilku
+ *   kończących w tej samej rundzie to remis (wszyscy na 1. miejscu).
  */
 
 export function createGame(players: Player[], target: number = DEFAULT_TARGET): GameState {
@@ -53,7 +56,21 @@ export function finishOrder(state: GameState): PlayerId[] {
 /** Miejsce gracza (1, 2, …) albo null, jeśli jeszcze gra. */
 export function placeOf(state: GameState, playerId: PlayerId): number | null {
   const i = finishOrder(state).indexOf(playerId);
-  return i === -1 ? null : i + 1;
+  if (i === -1) return null;
+  return evenRounds(state) ? 1 : i + 1;
+}
+
+/** Wyrównana runda w grze kilku graczy (solo nie ma czego wyrównywać). */
+function evenRounds(state: GameState): boolean {
+  return !!state.settings.evenRounds && state.players.length > 1;
+}
+
+/**
+ * Wyrównana runda: ktoś już skończył, ale runda jeszcze trwa – ktoś po nim
+ * rzuca ostatnią serię (żeby obaj mieli tyle samo serii).
+ */
+export function isLastChance(state: GameState): boolean {
+  return evenRounds(state) && !state.endedEarly && finishOrder(state).length > 0 && state.turns.length % state.players.length !== 0;
 }
 
 /** Gracze, którzy jeszcze rzucają, w kolejności rzucania. */
@@ -64,6 +81,7 @@ export function activePlayers(state: GameState): Player[] {
 
 export function isGameOver(state: GameState): boolean {
   if (state.endedEarly) return true;
+  if (evenRounds(state)) return finishOrder(state).length > 0 && state.turns.length % state.players.length === 0;
   const active = activePlayers(state).length;
   return state.players.length === 1 ? active === 0 : active <= 1;
 }
@@ -71,6 +89,8 @@ export function isGameOver(state: GameState): boolean {
 /** Gracz, który rzuca teraz (null po zakończeniu gry). */
 export function currentPlayer(state: GameState): Player | null {
   if (isGameOver(state)) return null;
+  // Wyrównana runda: do końca gry nikt nie odpada, więc rzucają po kolei.
+  if (evenRounds(state)) return state.players[state.turns.length % state.players.length];
   const done = new Set(finishOrder(state));
   const last = state.turns.at(-1);
   const start = last ? state.players.findIndex((p) => p.id === last.playerId) + 1 : 0;
@@ -157,6 +177,22 @@ function isTime(v: unknown): v is number {
   return typeof v === "number" && Number.isSafeInteger(v) && v > 0;
 }
 
+/**
+ * Zwycięzca zakończonej gry: pierwszy, który skończył. null, gdy gra trwa
+ * albo przy remisie (wyrównana runda, obaj skończyli w tej samej rundzie).
+ */
+export function winnerOf(state: GameState): PlayerId | null {
+  if (!isGameOver(state)) return null;
+  const order = finishOrder(state);
+  if (isDraw(state)) return null;
+  return order[0] ?? null;
+}
+
+/** Remis: z wyrównaną rundą w ostatniej rundzie skończył więcej niż jeden gracz. */
+export function isDraw(state: GameState): boolean {
+  return evenRounds(state) && !state.endedEarly && isGameOver(state) && finishOrder(state).length > 1;
+}
+
 /** Czy można zakończyć grę teraz: ktoś już skończył, a gra jeszcze trwa. */
 export function canEndEarly(state: GameState): boolean {
   return !isGameOver(state) && finishOrder(state).length > 0;
@@ -205,9 +241,10 @@ export function standings(state: GameState): Placement[] {
   const rest = state.players
     .filter((p) => !order.includes(p.id))
     .sort((a, b) => remainingFor(state, a.id) - remainingFor(state, b.id));
+  const tie = evenRounds(state);
   return [...finished, ...rest].map((player, i) => ({
     player,
-    place: i + 1,
+    place: tie && i < finished.length ? 1 : i + 1,
     rounds: rounds(player.id),
     remaining: remainingFor(state, player.id),
     finished: i < finished.length,

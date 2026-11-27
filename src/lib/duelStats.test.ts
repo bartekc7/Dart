@@ -44,4 +44,23 @@ describe("statystyki 1 na 1", () => {
     const events = addRecordsGame(rec, soloView(next.state, "a", 4000)).events;
     expect(events.some((e) => e.key === "series" && e.value === 100 && e.prev.value === 60)).toBe(true);
   });
+
+  it("wyrównana runda: remis liczy się osobno, a zejście do 0 przy remisie to nie najszybsza wygrana", () => {
+    let s: GameState = { ...createGame([A, B], 101), id: "5" };
+    s = { ...s, settings: { ...s.settings, evenRounds: true } };
+    s = applyTurn(applyTurn(s, 101, undefined, undefined, { at: 5000 }), 101, undefined, undefined, { at: 5000 });
+    const draw: FinishedDuel = { id: "5", target: 101, state: s, winnerId: null, endedAt: 5000 };
+    expect(duelTotals([g1, g2, g3, draw], "a")).toMatchObject({ games: 4, won: 1, lost: 2, drawn: 1 });
+    const h = headToHead([g1, g2, g3, draw], "a", "b");
+    expect(h).toMatchObject({ won: 1, lost: 2, drawn: 1, streak: null });
+    expect(h.recent[0]).toMatchObject({ id: "5", won: false, draw: true });
+    const view = soloView(s, "b", 5000);
+    expect(view.noWin).toBe(true);
+    expect(view.places).toEqual({ b: 2, "~rywal": 1 });
+    // Bartek zszedł do 0 w 1 serii, ale to remis – bez rekordu najszybszej wygranej.
+    expect(duelRecords([g1, g2, g3, draw], "b").personal.b["fastest:101"].value).toBe(2);
+    // W trakcie ostatniej szansy rywala też jeszcze nie ma wygranej.
+    const open = { ...s, turns: s.turns.slice(0, 1) };
+    expect(soloView(open, "a", 5000).noWin).toBe(true);
+  });
 });

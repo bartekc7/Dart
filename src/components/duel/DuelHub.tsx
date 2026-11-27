@@ -16,6 +16,7 @@ import { formatRecord, recordLabel, recordOrder } from "@/lib/game/records";
 import type { DuelSummary, Opponent } from "@/lib/server/duels";
 import { DuelBanner } from "./DuelHome";
 import { useDuels } from "./DuelProvider";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 const day = (ms: number) => new Date(ms).toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
 
@@ -46,9 +47,9 @@ export function DuelHub() {
   if (!duels.profile) {
     return (
       <>
-        <AppHeader title="⚔️ 1 na 1" backHref="/" />
+        <AppHeader title={<><DuelIcon /> 1 na 1</>} backHref="/" />
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <p className="text-5xl">⚔️</p>
+          <p className="text-5xl"><DuelIcon /></p>
           <p className="max-w-xs text-muted">
             Grę 1 na 1 zaczniesz, gdy dołączysz do ligi albo przyjmiesz zaproszenie od znajomego.
           </p>
@@ -66,7 +67,7 @@ export function DuelHub() {
 
   return (
     <>
-      <AppHeader title="⚔️ 1 na 1" backHref="/" />
+      <AppHeader title={<><DuelIcon /> 1 na 1</>} backHref="/" />
       <div className="flex flex-col gap-4">
         <p className="-mt-4 text-sm text-muted">Gry towarzyskie poza ligą. Nie wpływają na ranking ligi.</p>
         <DuelBanner />
@@ -86,6 +87,7 @@ export function DuelHub() {
                     {t.won} : {t.lost}
                   </span>
                 </div>
+                {t.drawn > 0 && <p className="text-right text-sm text-muted">remisy: {t.drawn}</p>}
                 <div className="mt-1 flex justify-between text-sm text-muted">
                   <span>{t.games === 1 ? "1 gra" : `${t.games} ${t.games % 10 >= 2 && t.games % 10 <= 4 && (t.games % 100 < 12 || t.games % 100 > 14) ? "gry" : "gier"}`}</span>
                   <span>{t.games ? `${Math.round((t.won / t.games) * 100)}% wygranych` : "–"}</span>
@@ -111,11 +113,12 @@ export function DuelHub() {
                               {!o.inLeague && <span className="ml-1.5 text-xs font-normal text-muted">spoza ligi</span>}
                             </span>
                             <span className="block text-sm text-muted">
-                              {day(new Date(o.lastPlayed!).getTime())} · {o.lastWon ? "wygrana" : "przegrana"}
+                              {day(new Date(o.lastPlayed!).getTime())} · {o.lastWon === null ? "remis" : o.lastWon ? "wygrana" : "przegrana"}
                             </span>
                           </span>
                           <span className="font-mono text-xl font-bold tabular-nums">
                             <span className={o.won > o.lost ? "text-green" : ""}>{o.won}</span> : <span className={o.lost > o.won ? "text-red" : ""}>{o.lost}</span>
+                            {o.drawn > 0 && <span className="ml-1 text-sm font-normal text-muted">({o.drawn} r.)</span>}
                           </span>
                           <span className="text-muted" aria-hidden>
                             ›

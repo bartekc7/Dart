@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { applyTurn, createGame, currentPlayer, finishOrder, isGameOver, isValidDart, undoLastTurn } from "../game/engine";
+import { applyTurn, createGame, currentPlayer, isGameOver, isValidDart, undoLastTurn, winnerOf } from "../game/engine";
 import type { GameState, Turn } from "../game/types";
 import { parseLook } from "../looks";
 import {
@@ -125,7 +125,8 @@ const DUEL_SELECT = `
 
 type Row = Record<string, unknown>;
 
-async function balanceOf(db: Db, a: string, b: string): Promise<Record<string, number>> {
+/** Bilans pary: wygrane każdego (po id) i remisy (winner_id = null). */
+async function balanceOf(db: Db, a: string, b: string): Promise<{ balance: Record<string, number>; draws: number }> {
   const { rows } = await db.query(
     `select winner_id, count(*)::int as n from duels
       where status = 'finished' and ((inviter_id = $1 and rival_id = $2) or (inviter_id = $2 and rival_id = $1))
@@ -133,8 +134,12 @@ async function balanceOf(db: Db, a: string, b: string): Promise<Record<string, n
     [a, b],
   );
   const out: Record<string, number> = { [a]: 0, [b]: 0 };
-  for (const r of rows) if (r.winner_id in out) out[r.winner_id] = r.n;
-  return out;
+  let draws = 0;
+  for (const r of rows) {
+    if (r.winner_id === null) draws = r.n;
+    else if (r.winner_id in out) out[r.winner_id] = r.n;
+  }
+  return { balance: out, draws };
 }
 
 async function toDuel(db: Db, r: Row, meId: string): Promise<Duel> {
@@ -144,6 +149,7 @@ async function toDuel(db: Db, r: Row, meId: string): Promise<Duel> {
     : null;
   if (rival) [inviter, rival] = distinctLooks(inviter, rival);
   const starterId = r.starter === "rival" ? (rival?.id ?? null) : inviter.id;
+  const { balance, draws } = rival ? await balanceOf(db, inviter.id, rival.id) : { balance: {}, draws: 0 };
   return {
     id: r.id as string,
     status: r.status as DuelStatus,
@@ -151,6 +157,7 @@ async function toDuel(db: Db, r: Row, meId: string): Promise<Duel> {
     inviter,
     rival,
     starterId,
+    evenRounds: !!r.even_rounds,
     inviteCode: r.inviter_id === meId ? ((r.invite_code as string) ?? null) : null,
     state: (r.state as GameState) ?? null,
     live: (r.live as DuelLive) ?? null,
@@ -158,7 +165,8 @@ async function toDuel(db: Db, r: Row, meId: string): Promise<Duel> {
     winnerId: (r.winner_id as string) ?? null,
     createdAt: new Date(r.created_at as string).toISOString(),
     expiresAt: new Date(r.created_at as string).getTime() + INVITE_TTL_MS,
-    balance: rival ? await balanceOf(db, inviter.id, rival.id) : {},
+    balance,
+    draws,
     rematchId: (r.rematch_id as string) ?? null,
   };
 }
@@ -222,9 +230,10 @@ export interface Opponent extends DuelProfile {
   inLeague: boolean;
   won: number;
   lost: number;
+  drawn: number;
   /** Ostatnia wspólna gra (ISO) albo null. */
   lastPlayed: string | null;
-  /** Czy wygrałem ostatnią wspólną grę (null = jeszcze nie graliśmy). */
+  /** Czy wygrałem ostatnią wspólną grę (null = jeszcze nie graliśmy albo remis). */
   lastWon: boolean | null;
 }
 
@@ -237,14 +246,15 @@ export async function opponents(db: Db, token: string | undefined): Promise<Oppo
     for (const m of await listMembers(db, league.league.id)) {
       if (m.id === league.member.id) continue;
       const p = await profileForMember(db, m);
-      out.set(p.id, { ...p, inLeague: true, won: 0, lost: 0, lastPlayed: null, lastWon: null });
+      out.set(p.id, { ...p, inLeague: true, won: 0, lost: 0, drawn: 0, lastPlayed: null, lastWon: null });
     }
   }
   const { rows } = await db.query(
-    `select o.id, o.name, o.color_idx, o.icon, t.won, t.lost, t.last, t.last_won
+    `select o.id, o.name, o.color_idx, o.icon, t.won, t.lost, t.drawn, t.last, t.last_won
        from (select case when inviter_id = $1 then rival_id else inviter_id end as other,
                     count(*) filter (where winner_id = $1)::int as won,
                     count(*) filter (where winner_id <> $1)::int as lost,
+                    count(*) filter (where winner_id is null)::int as drawn,
                     max(coalesce(ended_at, updated_at)) as last,
                     (array_agg(winner_id = $1 order by coalesce(ended_at, updated_at) desc))[1] as last_won
                from duels where status = 'finished' and (inviter_id = $1 or rival_id = $1) group by 1) t
@@ -257,6 +267,7 @@ export async function opponents(db: Db, token: string | undefined): Promise<Oppo
       ...(prev ?? { ...toProfile(r), inLeague: false }),
       won: r.won,
       lost: r.lost,
+      drawn: r.drawn,
       lastPlayed: new Date(r.last).toISOString(),
       lastWon: r.last_won,
     });
@@ -278,15 +289,16 @@ async function insertInvite(
   rivalId: string | null,
   target: number,
   starter: "inviter" | "rival",
+  evenRounds: boolean,
   rematchOf: string | null = null,
 ): Promise<string> {
   const id = randomUUID();
   for (let attempt = 0; ; attempt++) {
     try {
       await db.query(
-        `insert into duels (id, inviter_id, rival_id, target, starter, status, invite_code, rematch_of)
-         values ($1, $2, $3, $4, $5, 'pending', $6, $7)`,
-        [id, me.id, rivalId, target, starter, rivalId ? null : newJoinCode(8), rematchOf],
+        `insert into duels (id, inviter_id, rival_id, target, starter, status, invite_code, rematch_of, even_rounds)
+         values ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`,
+        [id, me.id, rivalId, target, starter, rivalId ? null : newJoinCode(8), rematchOf, evenRounds],
       );
       return id;
     } catch (e) {
@@ -310,7 +322,7 @@ async function requireFreeRival(db: Db, rivalId: string): Promise<DuelProfile> {
 export async function createDuel(
   db: Db,
   token: string | undefined,
-  input: { target?: unknown; starter?: unknown; rivalId?: unknown },
+  input: { target?: unknown; starter?: unknown; rivalId?: unknown; evenRounds?: unknown },
 ): Promise<{ id: string }> {
   const me = await requireProfile(db, token);
   const target = Number(input.target);
@@ -326,7 +338,7 @@ export async function createDuel(
   await housekeeping(db);
   await getReady(db, me);
   if (rivalId) await requireFreeRival(db, rivalId);
-  return { id: await insertInvite(db, me, rivalId, target, starter) };
+  return { id: await insertInvite(db, me, rivalId, target, starter, input.evenRounds === true) };
 }
 
 /** Rozpoczyna przyjętą grę: zaczynający rzuca pierwszy. */
@@ -336,7 +348,12 @@ async function start(db: Db, r: Row, rivalId: string) {
   const inviter = byId.get(r.inviter_id as string)!;
   const rival = byId.get(rivalId)!;
   const starterId = r.starter === "rival" ? rival.id : inviter.id;
-  const state: GameState = { ...createGame(playOrder(inviter, rival, starterId), r.target as number), id: r.id as string };
+  const game = createGame(playOrder(inviter, rival, starterId), r.target as number);
+  const state: GameState = {
+    ...game,
+    id: r.id as string,
+    ...(r.even_rounds ? { settings: { ...game.settings, evenRounds: true } } : {}),
+  };
   const { rowCount } = await db.query(
     `update duels set status = 'active', rival_id = $2, state = $3, live = null, rev = rev + 1, invite_code = null,
             started_at = now(), updated_at = now()
@@ -397,6 +414,7 @@ export async function invitePreview(db: Db, token: string | undefined, code: str
     inviter: { name: r.i_name as string },
     target: r.target as number,
     inviterStarts: r.starter === "inviter",
+    evenRounds: !!r.even_rounds,
   };
 }
 
@@ -438,7 +456,8 @@ async function saveState(db: Db, r: Row, state: GameState, extra: { status?: Due
     `update duels set state = $3, live = null, rev = rev + 1, status = $4, winner_id = $5,
             ended_at = case when $4 = 'finished' then now() else null end, updated_at = now()
       where id = $1 and rev = $2`,
-    [r.id, r.rev, JSON.stringify(state), status, status === "finished" ? (finishOrder(state)[0] ?? null) : null],
+    // Remis (wyrównana runda) zapisujemy jako skończoną grę bez zwycięzcy.
+    [r.id, r.rev, JSON.stringify(state), status, status === "finished" ? winnerOf(state) : null],
   );
   if (!rowCount) throw new UserError("Stan gry właśnie się zmienił. Spróbuj jeszcze raz.", 409);
 }
@@ -509,7 +528,7 @@ export async function setDuelLive(
   ]);
 }
 
-/** Rewanż: nowe zaproszenie dla tego samego rywala; zaczyna przegrany. */
+/** Rewanż: nowe zaproszenie dla tego samego rywala z tymi samymi zasadami; zaczyna przegrany (po remisie – ten, kto był drugi). */
 export async function rematchDuel(db: Db, token: string | undefined, id: string): Promise<{ id: string }> {
   const me = await requireProfile(db, token);
   await housekeeping(db);
@@ -520,7 +539,7 @@ export async function rematchDuel(db: Db, token: string | undefined, id: string)
   await getReady(db, me);
   await requireFreeRival(db, rivalId);
   const loser = rematchStarter(r.state as GameState, (r.winner_id as string) ?? null);
-  return { id: await insertInvite(db, me, rivalId, r.target as number, loser === me.id ? "inviter" : "rival", r.id as string) };
+  return { id: await insertInvite(db, me, rivalId, r.target as number, loser === me.id ? "inviter" : "rival", !!r.even_rounds, r.id as string) };
 }
 
 /** Moje zakończone gry 1 na 1 (opcjonalnie tylko z jednym rywalem). */

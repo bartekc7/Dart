@@ -93,7 +93,8 @@ function Waiting({ duel }: { duel: Duel }) {
         <p className="text-sm text-muted">
           {duel.rival ? "Zaproszenie wyskoczyło w aplikacji rywala." : "Link działa raz."}
           <br />
-          do {duel.target} · {starts} · ważne 10 min
+          do {duel.target} · {starts}
+          {duel.evenRounds && " · wyrównana runda"} · ważne 10 min
         </p>
       </div>
       <FormError message={error} />

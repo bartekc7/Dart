@@ -150,6 +150,7 @@ create index if not exists duels_inviter on duels (inviter_id, status);
 create index if not exists duels_rival on duels (rival_id, status);
 create index if not exists duels_open on duels (status) where status in ('pending', 'active');
 create index if not exists duels_rematch on duels (rematch_of) where rematch_of is not null;
+alter table duels add column if not exists even_rounds boolean not null default false;
 `;
 
 export async function ensureSchema(db: Db) {

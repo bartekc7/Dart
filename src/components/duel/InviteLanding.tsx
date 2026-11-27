@@ -9,10 +9,11 @@ import { Loading } from "@/components/league/StatusScreens";
 import { api, ApiError } from "@/lib/api";
 import type { DuelProfile } from "@/lib/duel";
 import type { LookKey } from "@/lib/looks";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 type Preview =
   | { valid: false; profile: DuelProfile | null }
-  | { valid: true; profile: DuelProfile | null; own: boolean; inviter: { name: string }; target: number; inviterStarts: boolean };
+  | { valid: true; profile: DuelProfile | null; own: boolean; inviter: { name: string }; target: number; inviterStarts: boolean; evenRounds?: boolean };
 
 /**
  * Link z zaproszeniem dla nowej osoby (pierwszy raz). Kto nie ma jeszcze
@@ -57,7 +58,7 @@ export function InviteLanding({ code }: { code: string }) {
     <form onSubmit={accept} className="flex flex-1 flex-col gap-5">
       <section className="mt-6 rounded-3xl bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-4 py-6 text-center text-white">
         <p className="text-5xl" aria-hidden>
-          ⚔️
+          <DuelIcon />
         </p>
         <p className="mt-2 text-2xl">
           <strong>{preview.inviter.name}</strong> zaprasza Cię
@@ -65,6 +66,7 @@ export function InviteLanding({ code }: { code: string }) {
         <p className="mt-1 opacity-90">
           do gry 1 na 1 · do {preview.target} · zaczyna {preview.inviterStarts ? preview.inviter.name : "Ty"}
         </p>
+        {preview.evenRounds && <p className="mt-1 text-sm font-semibold">⚖️ wyrównana runda – drugi może dorzucić do remisu</p>}
       </section>
       {preview.profile ? (
         <p className="text-center text-muted">Grasz jako {preview.profile.name}.</p>

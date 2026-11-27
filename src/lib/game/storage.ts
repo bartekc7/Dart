@@ -119,6 +119,8 @@ export function useVoice(): [boolean, (on: boolean) => void] {
 
 /** Jak ten telefon wpisuje punkty w grach 1 na 1 (każdy gracz wybiera u siebie). */
 export const useDuelEntryMode = () => useStored<"sum" | "darts">("dart:duelEntry");
+/** Ostatni wybór „Wyrównana runda” przy zakładaniu pojedynku (ten telefon). */
+export const useDuelEvenRounds = () => useStored<boolean>("dart:duelEvenRounds");
 
 /** Jak to urządzenie wpisuje pojedyncze rzutki: przyciski pól 1–20 albo klikalna tarcza. */
 export type DartInput = "pad" | "board";

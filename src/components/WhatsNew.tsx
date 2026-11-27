@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 import { markSeen, readSeen, shouldShow, unseenReleases, type WhatsNewRelease } from "@/lib/whatsNew";
 
 /** Lista nowości jednego wydania – używana w oknie i na stronie /co-nowego. */
@@ -14,7 +15,7 @@ export function ReleaseItems({ release }: { release: WhatsNewRelease }) {
             aria-hidden
             className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-board text-2xl ring-1 ring-line"
           >
-            {item.icon}
+            {item.icon === "duel" ? <DuelIcon /> : item.icon}
           </span>
           <div className="min-w-0">
             <p className="font-semibold leading-snug">{item.title}</p>

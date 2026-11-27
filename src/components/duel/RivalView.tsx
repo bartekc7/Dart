@@ -13,6 +13,7 @@ import type { DuelProfile } from "@/lib/duel";
 import type { HeadToHead } from "@/lib/duelStats";
 import { formatDuration } from "@/lib/game/engine";
 import { useDuels } from "./DuelProvider";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 const when = (ms: number) => {
   const d = new Date(ms);
@@ -48,7 +49,7 @@ export function RivalView({ id }: { id: string }) {
   if (!data || !duels?.profile) return <Loading />;
   const { rival, h2h } = data;
   const me = duels.profile;
-  const games = h2h.won + h2h.lost;
+  const games = h2h.won + h2h.lost + h2h.drawn;
   const streak = h2h.streak && h2h.streak.n > 1 ? h2h.streak : null;
 
   return (
@@ -64,12 +65,14 @@ export function RivalView({ id }: { id: string }) {
           {games > 0 && (
             <div className="mt-3 flex h-2.5 overflow-hidden rounded-full" aria-hidden>
               <span style={{ flex: h2h.won, backgroundColor: playerColor(me.color) }} />
+              <span style={{ flex: h2h.drawn, backgroundColor: "var(--color-line)" }} />
               <span style={{ flex: h2h.lost, backgroundColor: playerColor(rival.color) }} />
             </div>
           )}
           <p className="mt-2 flex justify-between gap-2 text-sm text-muted">
             <span>
               {games} {games === 1 ? "gra" : games % 10 >= 2 && games % 10 <= 4 && (games % 100 < 12 || games % 100 > 14) ? "gry" : "gier"}
+              {h2h.drawn > 0 && ` · remisy ${h2h.drawn}`}
               {h2h.since && ` · od ${new Date(h2h.since).toLocaleDateString("pl-PL", { day: "numeric", month: "short" })}`}
             </span>
             {streak && (
@@ -107,10 +110,10 @@ export function RivalView({ id }: { id: string }) {
                 <li key={g.id}>
                   <Link href={`/1na1/${g.id}`} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-2.5 ring-1 ring-line active:bg-surface-2">
                     <span className="w-6 text-center" aria-hidden>
-                      {g.won ? "🏆" : "✗"}
+                      {g.draw ? "🤝" : g.won ? "🏆" : "✗"}
                     </span>
                     <span className="flex-1">
-                      {g.won ? "Wygrana" : "Przegrana"} · do {g.target}
+                      {g.draw ? "Remis" : g.won ? "Wygrana" : "Przegrana"} · do {g.target}
                       {g.durationMs !== null && <span className="text-muted"> · {formatDuration(g.durationMs)}</span>}
                     </span>
                     <span className="text-sm text-muted">{when(g.at)}</span>
@@ -121,7 +124,7 @@ export function RivalView({ id }: { id: string }) {
           </section>
         )}
 
-        {!duels.active && <ButtonLink href={`/1na1/nowy?r=${encodeURIComponent(rival.id)}`}>⚔️ Zaproś do gry</ButtonLink>}
+        {!duels.active && <ButtonLink href={`/1na1/nowy?r=${encodeURIComponent(rival.id)}`}><DuelIcon /> Zaproś do gry</ButtonLink>}
       </div>
     </>
   );

@@ -25,6 +25,9 @@ import {
   formatDuration,
   gameDuration,
   gameStart,
+  isDraw,
+  isLastChance,
+  winnerOf,
 } from "./engine";
 import type { GameState } from "./types";
 
@@ -322,5 +325,70 @@ describe("czas gry", () => {
     expect(formatDuration(754_000)).toBe("12:34");
     expect(formatDuration(3_909_000)).toBe("1:05:09");
     expect(formatDuration(-5)).toBe("0:00");
+  });
+});
+
+describe("wyrównana runda (1 na 1)", () => {
+  const players = [
+    { id: "a", name: "Ania" },
+    { id: "b", name: "Bartek" },
+  ];
+  const even = (target = 101): GameState => {
+    const g = createGame(players, target);
+    return { ...g, settings: { ...g.settings, evenRounds: true } };
+  };
+
+  it("bez ustawienia gra kończy się, gdy pierwszy zejdzie do 0", () => {
+    let g = createGame(players, 101);
+    g = applyTurn(g, 101);
+    expect(isGameOver(g)).toBe(true);
+    expect(winnerOf(g)).toBe("a");
+    expect(isDraw(g)).toBe(false);
+  });
+
+  it("zaczynający kończy: drugi rzuca jeszcze ostatnią serię", () => {
+    let g = applyTurn(even(), 101);
+    expect(isGameOver(g)).toBe(false);
+    expect(isLastChance(g)).toBe(true);
+    expect(currentPlayer(g)?.id).toBe("b");
+    expect(winnerOf(g)).toBeNull();
+    g = applyTurn(g, 60);
+    expect(isGameOver(g)).toBe(true);
+    expect(isLastChance(g)).toBe(false);
+    expect(winnerOf(g)).toBe("a");
+    expect(standings(g).map((s) => [s.player.id, s.place])).toEqual([["a", 1], ["b", 2]]);
+  });
+
+  it("drugi też kończy w tej rundzie: remis", () => {
+    const g = applyTurn(applyTurn(even(), 101), 101);
+    expect(isGameOver(g)).toBe(true);
+    expect(isDraw(g)).toBe(true);
+    expect(winnerOf(g)).toBeNull();
+    expect(standings(g).map((s) => s.place)).toEqual([1, 1]);
+    expect(placeOf(g, "b")).toBe(1);
+  });
+
+  it("przekroczenie w ostatniej szansie: wygrywa pierwszy", () => {
+    const g = applyTurn(applyTurn(even(), 101), 120);
+    expect(isGameOver(g)).toBe(true);
+    expect(winnerOf(g)).toBe("a");
+  });
+
+  it("drugi w kolejce kończy jako pierwszy: od razu koniec", () => {
+    let g = applyTurn(even(), 50);
+    g = applyTurn(g, 101);
+    expect(isGameOver(g)).toBe(true);
+    expect(isLastChance(g)).toBe(false);
+    expect(winnerOf(g)).toBe("b");
+  });
+
+  it("cofnięcie serii kończącej wraca do gry", () => {
+    let g = applyTurn(applyTurn(even(), 101), 101);
+    g = undoLastTurn(g);
+    expect(isGameOver(g)).toBe(false);
+    expect(currentPlayer(g)?.id).toBe("b");
+    g = undoLastTurn(g);
+    expect(currentPlayer(g)?.id).toBe("a");
+    expect(isLastChance(g)).toBe(false);
   });
 });

@@ -121,7 +121,7 @@ export function addRecordsGame(prev: RecordsState, game: AchGame): { state: Reco
     scored.set(t.playerId, scored.get(t.playerId)! + t.scored);
     if (scored.get(t.playerId) === game.target) {
       finishers++;
-      if (finishers === 1) offer(t.playerId, `fastest:${game.target}`, turns.get(t.playerId)!, at, true);
+      if (finishers === 1 && !game.noWin) offer(t.playerId, `fastest:${game.target}`, turns.get(t.playerId)!, at, true);
     }
   }
 

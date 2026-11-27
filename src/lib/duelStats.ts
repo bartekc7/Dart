@@ -2,7 +2,7 @@
  * Statystyki gier 1 na 1 – osobno od ligi. Liczone z zakończonych gier
  * (stan gry z seriami), bez osobnych tabel. Bez Reacta i bez bazy.
  */
-import { gameDuration, isGameOver } from "./game/engine";
+import { gameDuration, isDraw, isGameOver, isLastChance, winnerOf } from "./game/engine";
 import { computeForm, gameAverage, type FormGame, type PlayerForm } from "./game/form";
 import { addRecordsGame, emptyRecords, type RecordsState } from "./game/records";
 import type { AchGame } from "./game/achievements";
@@ -13,6 +13,7 @@ export interface FinishedDuel {
   id: string;
   target: number;
   state: GameState;
+  /** null = remis (wyrównana runda, obaj skończyli w tej samej rundzie). */
   winnerId: string | null;
   /** Kiedy skończona (ms). */
   endedAt: number;
@@ -22,6 +23,8 @@ export interface DuelTotals {
   games: number;
   won: number;
   lost: number;
+  /** Remisy (tylko w grach z wyrównaną rundą). */
+  drawn: number;
   /** Średnio punktów na serię (3 rzutki), z przekroczeniami jako 0. */
   average: number;
 }
@@ -43,7 +46,8 @@ function averageOf(games: FinishedDuel[], me: string): number {
 
 export function duelTotals(games: FinishedDuel[], me: string): DuelTotals {
   const won = games.filter((g) => g.winnerId === me).length;
-  return { games: games.length, won, lost: games.length - won, average: averageOf(games, me) };
+  const drawn = games.filter((g) => !g.winnerId).length;
+  return { games: games.length, won, lost: games.length - won - drawn, drawn, average: averageOf(games, me) };
 }
 
 /**
@@ -52,7 +56,7 @@ export function duelTotals(games: FinishedDuel[], me: string): DuelTotals {
  */
 export function soloView(state: GameState, me: string, at: number): AchGame {
   const over = isGameOver(state);
-  const won = over && state.turns.at(-1)?.playerId === me && !state.endedEarly;
+  const won = winnerOf(state) === me;
   return {
     id: state.id ?? "",
     target: state.settings.target,
@@ -60,6 +64,8 @@ export function soloView(state: GameState, me: string, at: number): AchGame {
     turns: myTurns(state, me),
     at,
     ...(over ? { places: { [me]: won ? 1 : 2, "~rywal": won ? 2 : 1 } } : {}),
+    // Remis albo rywal ma jeszcze ostatnią szansę: moje zejście do 0 to nie (jeszcze) wygrana.
+    ...(isDraw(state) || isLastChance(state) ? { noWin: true } : {}),
   };
 }
 
@@ -81,6 +87,7 @@ export interface PlayerSide {
 export interface HeadToHead {
   won: number;
   lost: number;
+  drawn: number;
   /** Seria wygranych z rzędu na koniec: kto i ile (null, gdy brak gier). */
   streak: { winnerId: string; n: number } | null;
   /** Pierwsza wspólna gra (ms). */
@@ -90,7 +97,7 @@ export interface HeadToHead {
   /** Średni czas gry (ms) albo null. */
   avgDurationMs: number | null;
   /** Ostatnie gry, najnowsze pierwsze. */
-  recent: { id: string; won: boolean; target: number; at: number; durationMs: number | null }[];
+  recent: { id: string; won: boolean; draw: boolean; target: number; at: number; durationMs: number | null }[];
 }
 
 function side(games: FinishedDuel[], id: string): PlayerSide {
@@ -108,6 +115,7 @@ function side(games: FinishedDuel[], id: string): PlayerSide {
 export function headToHead(games: FinishedDuel[], me: string, rival: string, recentLimit = 10): HeadToHead {
   const sorted = [...games].sort((a, b) => b.endedAt - a.endedAt);
   const won = sorted.filter((g) => g.winnerId === me).length;
+  const drawn = sorted.filter((g) => !g.winnerId).length;
   let streak: HeadToHead["streak"] = null;
   for (const g of sorted) {
     if (!g.winnerId) break;
@@ -118,7 +126,8 @@ export function headToHead(games: FinishedDuel[], me: string, rival: string, rec
   const durations = sorted.map((g) => gameDuration(g.state)).filter((d): d is number => d !== null);
   return {
     won,
-    lost: sorted.length - won,
+    lost: sorted.length - won - drawn,
+    drawn,
     streak,
     since: sorted.length ? sorted.at(-1)!.endedAt : null,
     me: side(sorted, me),
@@ -127,6 +136,7 @@ export function headToHead(games: FinishedDuel[], me: string, rival: string, rec
     recent: sorted.slice(0, recentLimit).map((g) => ({
       id: g.id,
       won: g.winnerId === me,
+      draw: !g.winnerId,
       target: g.target,
       at: g.endedAt,
       durationMs: gameDuration(g.state),
