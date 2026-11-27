@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/Button";
 import { FormError } from "@/components/ui/Field";
 import type { Duel } from "@/lib/duel";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 /** Karta zaproszenia u rywala: kto zaprasza, do ilu, kto zaczyna, „Gramy!” / „Nie teraz”. */
 export function InviteCard({
@@ -25,7 +26,7 @@ export function InviteCard({
     <div className="flex flex-col gap-4 rounded-3xl bg-surface p-4 shadow-2xl ring-1 ring-line">
       <div className="rounded-2xl bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-4 py-5 text-center text-white">
         <p className="text-4xl" aria-hidden>
-          ⚔️
+          <DuelIcon />
         </p>
         <p className="mt-1 text-2xl">
           <strong>{inviter.name}</strong> zaprasza Cię

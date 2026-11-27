@@ -13,6 +13,7 @@ import type { DuelProfile } from "@/lib/duel";
 import type { HeadToHead } from "@/lib/duelStats";
 import { formatDuration } from "@/lib/game/engine";
 import { useDuels } from "./DuelProvider";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 const when = (ms: number) => {
   const d = new Date(ms);
@@ -121,7 +122,7 @@ export function RivalView({ id }: { id: string }) {
           </section>
         )}
 
-        {!duels.active && <ButtonLink href={`/1na1/nowy?r=${encodeURIComponent(rival.id)}`}>⚔️ Zaproś do gry</ButtonLink>}
+        {!duels.active && <ButtonLink href={`/1na1/nowy?r=${encodeURIComponent(rival.id)}`}><DuelIcon /> Zaproś do gry</ButtonLink>}
       </div>
     </>
   );

@@ -4,10 +4,22 @@
  * a gdy dwa wydania jednego dnia: RRRR-MM-DD-2). Okno pokaże się raz każdemu,
  * kto grał wcześniej, a potem jest dostępne w Opcjach.
  */
+/** `icon`: emoji albo "duel" – znak 1 na 1 (skrzyżowane rzutki, rysowany w SVG). */
 export type WhatsNewItem = { icon: string; title: string; text: string };
 export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] };
 
 export const RELEASES: WhatsNewRelease[] = [
+  {
+    id: "2026-11-27-8",
+    date: "27 listopada",
+    items: [
+      {
+        icon: "duel",
+        title: "Nowy znak 1 na 1",
+        text: "Gry 1 na 1 mają teraz własny znak: dwie skrzyżowane rzutki zamiast mieczy.",
+      },
+    ],
+  },
   {
     id: "2026-11-27-7",
     date: "27 listopada",
@@ -48,7 +60,7 @@ export const RELEASES: WhatsNewRelease[] = [
       {
         icon: "🤝",
         title: "Bilans z rywalami",
-        text: "Ekran „⚔️ 1 na 1” pokazuje teraz Twój bilans, listę rywali i Twoje rekordy 1 na 1. Dotknij rywala, żeby zobaczyć Ty vs on: kto prowadzi, serię wygranych, średnie, najlepsze serie i ostatnie wspólne gry.",
+        text: "Ekran „1 na 1” pokazuje teraz Twój bilans, listę rywali i Twoje rekordy 1 na 1. Dotknij rywala, żeby zobaczyć Ty vs on: kto prowadzi, serię wygranych, średnie, najlepsze serie i ostatnie wspólne gry.",
       },
       {
         icon: "📈",
@@ -62,9 +74,9 @@ export const RELEASES: WhatsNewRelease[] = [
     date: "27 listopada",
     items: [
       {
-        icon: "⚔️",
+        icon: "duel",
         title: "Gry 1 na 1",
-        text: "Nowy przycisk „⚔️ 1 na 1” na starcie. Wybierz rywala z ligi, a zaproszenie wyskoczy w jego aplikacji. Każdy wpisuje swoje rzutki na swoim telefonie, gdy ma kolej, a drugi widzi je na żywo. Te gry nie liczą się do rankingu ligi i widzicie je tylko wy dwoje. Kogoś spoza ligi zaprosisz za pierwszym razem linkiem albo kodem QR.",
+        text: "Nowy przycisk „1 na 1” na starcie. Wybierz rywala z ligi, a zaproszenie wyskoczy w jego aplikacji. Każdy wpisuje swoje rzutki na swoim telefonie, gdy ma kolej, a drugi widzi je na żywo. Te gry nie liczą się do rankingu ligi i widzicie je tylko wy dwoje. Kogoś spoza ligi zaprosisz za pierwszym razem linkiem albo kodem QR.",
       },
     ],
   },

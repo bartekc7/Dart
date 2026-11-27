@@ -16,6 +16,7 @@ import { formatRecord, recordLabel, recordOrder } from "@/lib/game/records";
 import type { DuelSummary, Opponent } from "@/lib/server/duels";
 import { DuelBanner } from "./DuelHome";
 import { useDuels } from "./DuelProvider";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 const day = (ms: number) => new Date(ms).toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
 
@@ -46,9 +47,9 @@ export function DuelHub() {
   if (!duels.profile) {
     return (
       <>
-        <AppHeader title="⚔️ 1 na 1" backHref="/" />
+        <AppHeader title={<><DuelIcon /> 1 na 1</>} backHref="/" />
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <p className="text-5xl">⚔️</p>
+          <p className="text-5xl"><DuelIcon /></p>
           <p className="max-w-xs text-muted">
             Grę 1 na 1 zaczniesz, gdy dołączysz do ligi albo przyjmiesz zaproszenie od znajomego.
           </p>
@@ -66,7 +67,7 @@ export function DuelHub() {
 
   return (
     <>
-      <AppHeader title="⚔️ 1 na 1" backHref="/" />
+      <AppHeader title={<><DuelIcon /> 1 na 1</>} backHref="/" />
       <div className="flex flex-col gap-4">
         <p className="-mt-4 text-sm text-muted">Gry towarzyskie poza ligą. Nie wpływają na ranking ligi.</p>
         <DuelBanner />

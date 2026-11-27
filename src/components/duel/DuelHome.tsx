@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/Button";
 import { useDuels } from "./DuelProvider";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 /** Pasek na ekranie głównym: trwający pojedynek albo moje zaproszenie, które czeka na rywala. */
 export function DuelBanner() {
@@ -16,7 +17,7 @@ export function DuelBanner() {
         className="flex items-center gap-3 rounded-2xl bg-green/15 px-4 py-3 ring-2 ring-green/60"
       >
         <span className="text-2xl" aria-hidden>
-          ⚔️
+          <DuelIcon />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">Pojedynek: Ty vs {rival?.name}</span>
@@ -48,7 +49,7 @@ export function DuelBanner() {
 export function DuelButton({ className = "" }: { className?: string }) {
   return (
     <ButtonLink href="/1na1" variant="secondary" className={`min-h-12 text-base ${className}`}>
-      ⚔️ 1 na 1
+      <DuelIcon /> 1 na 1
     </ButtonLink>
   );
 }

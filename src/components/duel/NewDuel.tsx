@@ -12,6 +12,7 @@ import { playerColor } from "@/lib/colors";
 import { DUEL_TARGETS } from "@/lib/duel";
 import type { Opponent } from "@/lib/server/duels";
 import { useDuels } from "./DuelProvider";
+import { DuelIcon } from "@/components/ui/DuelIcon";
 
 type Starter = "me" | "rival" | "random";
 const STARTERS: { value: Starter; label: string }[] = [
@@ -47,9 +48,9 @@ export function NewDuel({ focusId }: { focusId?: string }) {
   if (!duels.profile) {
     return (
       <>
-        <AppHeader title="⚔️ 1 na 1" backHref="/" />
+        <AppHeader title={<><DuelIcon /> 1 na 1</>} backHref="/" />
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <p className="text-5xl">⚔️</p>
+          <p className="text-5xl"><DuelIcon /></p>
           <p className="max-w-xs text-muted">
             Grę 1 na 1 zaczniesz, gdy dołączysz do ligi albo przyjmiesz zaproszenie od znajomego.
           </p>
@@ -63,9 +64,9 @@ export function NewDuel({ focusId }: { focusId?: string }) {
   if (duels.active) {
     return (
       <>
-        <AppHeader title="⚔️ 1 na 1" backHref="/" />
+        <AppHeader title={<><DuelIcon /> 1 na 1</>} backHref="/" />
         <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
-          <p className="text-5xl">⚔️</p>
+          <p className="text-5xl"><DuelIcon /></p>
           <p className="max-w-xs text-muted">Masz trwający pojedynek. Dokończ go albo anuluj, zanim zaczniesz nowy.</p>
           <ButtonLink href={`/1na1/${duels.active.id}`} className="max-w-xs">
             Wróć do pojedynku

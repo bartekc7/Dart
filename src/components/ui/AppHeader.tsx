@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export function AppHeader({ title, backHref }: { title: string; backHref?: string }) {
+export function AppHeader({ title, backHref }: { title: React.ReactNode; backHref?: string }) {
   return (
     <header className="mb-6 flex items-center gap-3">
       {backHref && (
