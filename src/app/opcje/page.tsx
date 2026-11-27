@@ -2,6 +2,7 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { InstallGuide } from "@/components/InstallGuide";
 import { ThemePicker } from "@/components/ThemePicker";
 import { EntryModePicker } from "@/components/EntryModePicker";
+import { DartInputPicker } from "@/components/DartInputPicker";
 import { VoicePicker } from "@/components/VoicePicker";
 import { WhatsNewLink } from "@/components/WhatsNew";
 import { MyName } from "@/components/league/MyName";
@@ -15,6 +16,7 @@ export default function OptionsPage() {
       <WhatsNewLink />
       <MyName />
       <EntryModePicker />
+      <DartInputPicker />
       <VoicePicker />
       <ThemePicker />
       <InstallGuide />

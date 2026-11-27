@@ -119,3 +119,23 @@ export function useVoice(): [boolean, (on: boolean) => void] {
 
 /** Jak ten telefon wpisuje punkty w grach 1 na 1 (każdy gracz wybiera u siebie). */
 export const useDuelEntryMode = () => useStored<"sum" | "darts">("dart:duelEntry");
+
+/** Jak to urządzenie wpisuje pojedyncze rzutki: przyciski pól 1–20 albo klikalna tarcza. */
+export type DartInput = "pad" | "board";
+const DART_INPUT_KEY = "dart:dartInput";
+
+/** Domyślnie tarcza na dużym ekranie (od 768 px – tablet, komputer), przyciski na telefonie. */
+export function defaultDartInput(width: number): DartInput {
+  return width >= 768 ? "board" : "pad";
+}
+
+/**
+ * Wybór tego urządzenia (Opcje). Bez wyboru – wg szerokości ekranu.
+ * Przed wczytaniem (serwer) zwraca null, żeby nie mignęły złe przyciski.
+ */
+export function useDartInput(): [DartInput | null, (v: DartInput) => void] {
+  const [raw, set] = useStored<DartInput>(DART_INPUT_KEY);
+  const value: DartInput | null =
+    raw === undefined ? null : raw === "pad" || raw === "board" ? raw : defaultDartInput(window.innerWidth);
+  return [value, set];
+}

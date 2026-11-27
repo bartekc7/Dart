@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { DARTS_PER_TURN, dartName, type Mult } from "@/lib/game/engine";
+import { checkout, DARTS_PER_TURN, dartName, fieldValue, type Mult } from "@/lib/game/engine";
+import { boardKeyCenter, finishingKeys } from "@/lib/game/board";
+import { useDartInput } from "@/lib/game/storage";
+import { DartBoard } from "./DartBoard";
 
 /** Rzutki już wpisane w bieżącej serii (punkty i pola, np. 60 / „T20”). */
 export interface PendingDarts {
@@ -19,6 +22,7 @@ const PREFIX = { 1: "", 2: "D", 3: "T" } as const;
  * (z Double/Triple – dwa dotknięcia). Seria kończy się po trzeciej rzutce
  * albo wcześniej, gdy gracz trafi równo lub przekroczy cel (dalej nie rzuca).
  * Pomyłkę poprawia „↶ Cofnij” u góry ekranu.
+ * Zamiast przycisków urządzenie może mieć klikalną tarczę (Opcje › Wpisywanie rzutek).
  * Wpisane rzutki trzyma ekran gry, żeby „Cofnij” i podpowiedź je widziały.
  */
 export function DartPad({
@@ -34,14 +38,19 @@ export function DartPad({
 }) {
   const { darts, labels } = pending;
   const [mult, setMult] = useState<Mult>(1);
+  const [input] = useDartInput();
+  // Miejsca kliknięć na tarczy (kropki z numerem rzutki); pola bez miejsca – środek pola.
+  const [spots, setSpots] = useState<{ key: string; x: number; y: number }[]>([]);
 
   const total = darts.reduce((a, b) => a + b, 0);
   // Ile brakuje do równego: pola, którymi da się skończyć, świecą na zielono.
   const left = remaining - total;
+  const finishKeys = finishingKeys(left);
 
   /** Zapis pola rzutki (T20, D8, 5, D25 = bull, 0 = pudło) – trafia też do statystyk tarczy. */
-  function commit(v: number, field = dartName(v)) {
+  function commit(v: number, field = dartName(v), spot?: [number, number]) {
     const next = [...darts, v];
+    if (spot) setSpots([...spots.slice(0, darts.length), { key: field, x: spot[0], y: spot[1] }]);
     const sum = total + v;
     setMult(1);
     vibrate(10);
@@ -52,6 +61,9 @@ export function DartPad({
       onPendingChange({ darts: next, labels: [...labels, field] });
     }
   }
+
+  if (input === null) return null;
+  const board = input === "board";
 
   /** Double/Triple działa na jedną rzutkę; ponowne dotknięcie wyłącza. */
   function toggle(m: 2 | 3) {
@@ -84,11 +96,37 @@ export function DartPad({
             </div>
           );
         })}
-        <div className="flex w-16 shrink-0 flex-col items-center justify-center text-center leading-tight land:w-20">
+        <div
+          className={`flex w-16 shrink-0 flex-col items-center justify-center text-center leading-tight land:w-20 ${board ? "max-[420px]:hidden" : ""}`}
+        >
           <span className="text-xs text-muted">razem</span>
           <span className="font-mono text-xl font-bold tabular-nums">{total}</span>
         </div>
+        {board && (
+          <button
+            type="button"
+            onClick={() => commit(0, "0")}
+            className="w-20 shrink-0 rounded-2xl bg-surface font-semibold text-muted ring-1 ring-line transition active:scale-95 land:w-28 land:text-lg"
+          >
+            ✕ Pudło
+          </button>
+        )}
       </div>
+
+      {board ? (
+        <DartBoard
+          finish={finishKeys}
+          hint={finishKeys.length ? null : (checkout(left, DARTS_PER_TURN - darts.length)?.[0] ?? null)}
+          marks={labels.flatMap((k, i) => {
+            if (k === "0") return [];
+            const s = spots[i];
+            const c = s && s.key === k ? [s.x, s.y] : boardKeyCenter(k);
+            return c ? [[c[0], c[1], i + 1] as [number, number, number]] : [];
+          })}
+          onPick={(key, x, y) => commit(fieldValue(key) ?? 0, key, key === "0" ? undefined : [x, y])}
+        />
+      ) : (
+      <>
 
       {/* Pięć przycisków w rzędzie, równo z polami 1–20 poniżej. */}
       <div className="mb-1.5 grid grid-cols-5 gap-1.5 land:mb-2 land:gap-2">
@@ -133,6 +171,8 @@ export function DartPad({
           </FieldKey>
         ))}
       </div>
+      </>
+      )}
     </div>
   );
 }

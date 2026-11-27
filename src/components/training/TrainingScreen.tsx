@@ -10,7 +10,9 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { api } from "@/lib/api";
 import { DartPad, type PendingDarts } from "@/components/game/DartPad";
 import { checkout, DARTS_PER_TURN, fieldValue, formatCheckout, newId } from "@/lib/game/engine";
-import { useSeenTrainingHelp, useStoredTraining, type StoredTraining } from "@/lib/game/storage";
+import { useDartInput, useSeenTrainingHelp, useStoredTraining, type StoredTraining } from "@/lib/game/storage";
+import { aimHitFromKey, aimKeys, clockKeys } from "@/lib/game/board";
+import { DartBoard } from "@/components/game/DartBoard";
 import {
   addAim, addCheckout, addClock, addFree, aimPoints, aimSummary, AIM_DARTS, AIM_TARGETS, canUndo, CHECKOUT_ROUNDS, CLOCK_LAST,
   clockField, dartsWord, endFree, formatScore, freeSummary, FREE_RECORD_MIN_DARTS, isFreeSeriesRecord, isTrainingOver, isTrainingRecord, MODE_BY_ID, MODES, startTraining,
@@ -277,6 +279,8 @@ function FreePlay({ s, onChange }: { s: Extract<TrainingState, { mode: "free" }>
 function AimPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "aim" }>; onChange: (s: TrainingState) => void }) {
   const sum = aimSummary(s.target, s.darts);
   const bull = s.target === "25";
+  const [input] = useDartInput();
+  const board = input === "board";
   const label = (h: AimHit) =>
     h === "0" ? "pudło" : bull ? (h === "D" ? "50" : "25") : `${h === "S" ? "" : h}${s.target}`;
   const keys: { hit: AimHit; text: string; cls: string }[] = bull
@@ -316,6 +320,16 @@ function AimPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "aim" }>; 
         </p>
       </section>
       <p className="text-center text-sm text-muted">Gdzie trafiła rzutka?</p>
+      {board ? (
+        <BoardKeys
+          targets={aimKeys(s.target)}
+          onPick={(key) => {
+            const hit = aimHitFromKey(s.target, key);
+            buzz(hit === "0" ? 15 : aimPoints(s.target, hit) >= 50 ? [30, 40, 30] : 30);
+            onChange(addAim(s, hit));
+          }}
+        />
+      ) : (
       <div className={`grid gap-2 ${bull ? "grid-cols-3" : "grid-cols-2"}`}>
         {keys.map((k) => (
           <button
@@ -331,6 +345,7 @@ function AimPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "aim" }>; 
           </button>
         ))}
       </div>
+      )}
     </>
   );
 }
@@ -338,6 +353,8 @@ function AimPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "aim" }>; 
 function ClockPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "clock" }>; onChange: (s: TrainingState) => void }) {
   const field = clockField(s.darts);
   const hits = field - 1;
+  const [input] = useDartInput();
+  const targets = clockKeys(field, CLOCK_LAST);
   return (
     <>
       <section className="pt-2 text-center" aria-live="polite">
@@ -348,6 +365,16 @@ function ClockPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "clock" 
           {hits} z {CLOCK_LAST}
         </p>
       </section>
+      {input === "board" ? (
+        <BoardKeys
+          targets={targets}
+          onPick={(key) => {
+            const hit = targets.includes(key);
+            if (hit) buzz(30);
+            onChange(addClock(s, hit));
+          }}
+        />
+      ) : (
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
@@ -363,7 +390,24 @@ function ClockPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "clock" 
           Pudło
         </button>
       </div>
+      )}
     </>
+  );
+}
+
+/** Klikalna tarcza w treningu: pola celu na żółto, obok przycisk „Pudło”. */
+function BoardKeys({ targets, onPick }: { targets: string[]; onPick: (key: string) => void }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <DartBoard targets={targets} onPick={(key) => onPick(key)} />
+      <button
+        type="button"
+        className="min-h-12 rounded-2xl bg-surface-2 text-lg font-semibold text-muted ring-1 ring-line transition active:scale-[0.97]"
+        onClick={() => onPick("0")}
+      >
+        ✕ Pudło
+      </button>
+    </div>
   );
 }
 
