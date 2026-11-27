@@ -10,7 +10,6 @@ import {
   dartName,
   formatCheckout,
   formatDarts,
-  isLastChance,
   isValidDart,
   lastTurnOf,
   playerStats,
@@ -74,9 +73,6 @@ export function DuelPlay({
   const thrown = shown.darts.reduce((a, b) => a + b, 0);
   const hint = checkout(remaining - thrown, DARTS_PER_TURN - shown.darts.length);
   const last = state.turns.at(-1);
-  // Wyrównana runda: zaczynający już zszedł do 0, drugi rzuca ostatnią serię.
-  const lastChance = isLastChance(state);
-  const finisher = lastChance ? profileOf(state.players.find((p) => p.id !== player.id)!.id) : null;
   const rivalTyping = !!duel.live && duel.live.playerId !== meId && duel.live.darts.length > 0;
   const canUndo = !busy && (pending.darts.length > 0 || (last?.playerId === meId && !rivalTyping));
 
@@ -161,7 +157,7 @@ export function DuelPlay({
           </Link>
           <p className="min-w-0 truncate px-2 text-lg">
             {myTurn ? (
-              <span className="font-bold">{lastChance ? "Ostatnia szansa!" : "Twoja kolej"}</span>
+              <span className="font-bold">Twoja kolej</span>
             ) : (
               <>
                 Rzuca <span className="font-bold">{player.name}</span>
@@ -185,26 +181,13 @@ export function DuelPlay({
         <p className="text-6xl leading-tight font-bold tabular-nums max-[380px]:text-5xl [@media(min-width:48rem)_and_(min-height:36rem)]:text-8xl">
           {myTurn ? remaining : remaining - thrown}
         </p>
-        {finisher && (
-          <p className="mx-auto mb-1 w-fit rounded-full bg-black/25 px-3 py-0.5 text-sm font-semibold">
-            ⚖️{" "}
-            {myTurn
-              ? `${finisher.name} już na 0 – zejdź i Ty, będzie remis`
-              : finisher.id === meId
-                ? `Jesteś na 0! ${player.name} rzuca na remis`
-                : `${finisher.name} na 0 – ${player.name} rzuca na remis`}
-          </p>
-        )}
         {hint ? (
           <p className="mx-auto w-fit rounded-full bg-white/20 px-3 font-mono text-lg leading-snug font-bold land:text-2xl">
             <span className="font-sans text-sm font-semibold opacity-90">🎯 {myTurn ? "kończ" : "kończy"}: </span>
             {formatCheckout(hint)}
           </p>
         ) : (
-          !feedback && <p className="mt-1 text-sm uppercase tracking-wider opacity-90">
-              zostało · gra do {state.settings.target}
-              {state.settings.evenRounds && !lastChance && " · wyrównana runda"}
-            </p>
+          !feedback && <p className="mt-1 text-sm uppercase tracking-wider opacity-90">zostało · gra do {state.settings.target}</p>
         )}
         {feedback && (
           <p role="status" className="mx-auto mt-1 w-fit rounded-full bg-black/25 px-3 py-0.5 text-sm font-medium">

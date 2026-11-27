@@ -87,7 +87,6 @@ export function DuelHub() {
                     {t.won} : {t.lost}
                   </span>
                 </div>
-                {t.drawn > 0 && <p className="text-right text-sm text-muted">remisy: {t.drawn}</p>}
                 <div className="mt-1 flex justify-between text-sm text-muted">
                   <span>{t.games === 1 ? "1 gra" : `${t.games} ${t.games % 10 >= 2 && t.games % 10 <= 4 && (t.games % 100 < 12 || t.games % 100 > 14) ? "gry" : "gier"}`}</span>
                   <span>{t.games ? `${Math.round((t.won / t.games) * 100)}% wygranych` : "–"}</span>
@@ -113,12 +112,11 @@ export function DuelHub() {
                               {!o.inLeague && <span className="ml-1.5 text-xs font-normal text-muted">spoza ligi</span>}
                             </span>
                             <span className="block text-sm text-muted">
-                              {day(new Date(o.lastPlayed!).getTime())} · {o.lastWon === null ? "remis" : o.lastWon ? "wygrana" : "przegrana"}
+                              {day(new Date(o.lastPlayed!).getTime())} · {o.lastWon ? "wygrana" : "przegrana"}
                             </span>
                           </span>
                           <span className="font-mono text-xl font-bold tabular-nums">
                             <span className={o.won > o.lost ? "text-green" : ""}>{o.won}</span> : <span className={o.lost > o.won ? "text-red" : ""}>{o.lost}</span>
-                            {o.drawn > 0 && <span className="ml-1 text-sm font-normal text-muted">({o.drawn} r.)</span>}
                           </span>
                           <span className="text-muted" aria-hidden>
                             ›

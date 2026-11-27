@@ -178,11 +178,6 @@ export interface AchGame {
   at: number;
   /** Miejsca na koniec gry; brak = gra jeszcze trwa (liczniki gier czekają na koniec). */
   places?: Record<string, number>;
-  /**
-   * Zejście do 0 nie jest (jeszcze) wygraną: remis albo wyrównana runda,
-   * w której rywal ma ostatnią szansę. Wtedy bez rekordu „najszybsza wygrana”.
-   */
-  noWin?: boolean;
 }
 
 /** Wszystkie pola tarczy: 1–20 pojedyncze, double i triple oraz 25 i bull. */

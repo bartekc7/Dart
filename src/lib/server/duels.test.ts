@@ -177,32 +177,4 @@ describe.skipIf(!url)("gry 1 na 1 w bazie", () => {
     const marek = await requireProfile(db, gosc);
     await expect(rivalSummary(db, bartek, marek.id)).rejects.toThrow(/Nie ma takiego gracza/);
   });
-  it("wyrównana runda: drugi dorzuca ostatnią serię; obaj na 0 = remis, rewanż zaczyna drugi", async () => {
-    const b = (await opponents(db, ania)).find((o) => o.name === "Bartek")!;
-    const { id } = await createDuel(db, ania, { target: 101, starter: "me", rivalId: b.id, evenRounds: true });
-    expect((await duelsMe(db, bartek)).incoming).toMatchObject({ id, evenRounds: true });
-    let duel = await acceptDuel(db, bartek, id);
-    expect(duel.state!.settings.evenRounds).toBe(true);
-    duel = await submitDuelTurn(db, ania, id, { scored: 101 });
-    expect(duel.status).toBe("active");
-    duel = await submitDuelTurn(db, bartek, id, { scored: 101 });
-    expect(duel).toMatchObject({ status: "finished", winnerId: null, draws: 1 });
-    expect((await opponents(db, ania)).find((o) => o.id === b.id)).toMatchObject({ won: 0, lost: 1, drawn: 1, lastWon: null });
-    expect((await duelSummary(db, ania)).totals).toMatchObject({ games: 2, won: 0, lost: 1, drawn: 1 });
-    expect((await rivalSummary(db, ania, b.id)).h2h).toMatchObject({ won: 0, lost: 1, drawn: 1, streak: null });
-
-    // Rewanż: te same zasady, zaczyna ten, kto był drugi (Bartek). Ania ma ostatnią szansę, ale przekracza.
-    const { id: next } = await rematchDuel(db, ania, id);
-    duel = await acceptDuel(db, bartek, next);
-    expect(duel.evenRounds).toBe(true);
-    expect(duel.state!.players[0].name).toBe("Bartek");
-    await submitDuelTurn(db, bartek, next, { scored: 101 });
-    duel = await submitDuelTurn(db, ania, next, { scored: 120 });
-    expect(duel).toMatchObject({ status: "finished", winnerId: b.id });
-
-    // Bez ustawienia jak dotąd: koniec od razu po zejściu do 0.
-    const { id: plain } = await createDuel(db, ania, { target: 101, starter: "me", rivalId: b.id });
-    expect((await acceptDuel(db, bartek, plain)).evenRounds).toBe(false);
-    expect((await submitDuelTurn(db, ania, plain, { scored: 101 })).status).toBe("finished");
-  });
 });

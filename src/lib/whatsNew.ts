@@ -14,11 +14,6 @@ export const RELEASES: WhatsNewRelease[] = [
     date: "27 listopada",
     items: [
       {
-        icon: "⚖️",
-        title: "Wyrównana runda w 1 na 1",
-        text: "Zakładając pojedynek, możesz włączyć „Wyrównaną rundę”. Gdy zaczynający zejdzie do 0, rywal rzuca jeszcze swoją serię, żeby obaj mieli tyle samo serii. Jeśli też zejdzie do 0, jest remis – bilans pokazuje remisy osobno, a rewanż zaczyna ten, kto był drugi. Bez tego ustawienia gra kończy się jak dotąd, gdy pierwszy zejdzie do 0.",
-      },
-      {
         icon: "duel",
         title: "Nowy znak 1 na 1",
         text: "Gry 1 na 1 mają teraz własny znak: dwie skrzyżowane rzutki zamiast mieczy.",

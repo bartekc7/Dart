@@ -33,23 +33,18 @@ export interface Duel {
   rival: DuelProfile | null;
   /** Kto zaczyna. */
   starterId: string | null;
-  /** Wyrównana runda: gdy zaczynający skończy, rywal rzuca jeszcze swoją serię (remis możliwy). */
-  evenRounds: boolean;
   /** Kod do linku dla nowej osoby (tylko u zapraszającego). */
   inviteCode: string | null;
   /** Stan gry: gracze w kolejności rzucania, serie. Pusty, dopóki rywal nie przyjmie. */
   state: GameState | null;
   live: DuelLive | null;
   rev: number;
-  /** null po skończonej grze = remis. */
   winnerId: string | null;
   createdAt: string;
   /** Do kiedy ważne jest zaproszenie (ms). */
   expiresAt: number;
   /** Bilans tej pary przed i po tej grze: wygrane każdego z graczy (po id). */
   balance: Record<string, number>;
-  /** Remisy tej pary (do bilansu). */
-  draws: number;
   /** Rewanż: id nowego zaproszenia po tej grze (gdy ktoś go wysłał). */
   rematchId: string | null;
 }
@@ -78,9 +73,8 @@ export function distinctLooks(a: DuelProfile, b: DuelProfile): [DuelProfile, Due
   return [a, { ...b, color, icon: null }];
 }
 
-/** Rewanż: zaczyna ten, kto przegrał. Po remisie zaczyna ten, kto teraz rzucał drugi. */
+/** Rewanż: zaczyna ten, kto przegrał. */
 export function rematchStarter(state: GameState, winnerId: string | null): string | null {
-  if (!winnerId) return state.players[1]?.id ?? null;
   return state.players.find((p) => p.id !== winnerId)?.id ?? null;
 }
 

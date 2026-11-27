@@ -13,7 +13,7 @@ import { DuelIcon } from "@/components/ui/DuelIcon";
 
 type Preview =
   | { valid: false; profile: DuelProfile | null }
-  | { valid: true; profile: DuelProfile | null; own: boolean; inviter: { name: string }; target: number; inviterStarts: boolean; evenRounds?: boolean };
+  | { valid: true; profile: DuelProfile | null; own: boolean; inviter: { name: string }; target: number; inviterStarts: boolean };
 
 /**
  * Link z zaproszeniem dla nowej osoby (pierwszy raz). Kto nie ma jeszcze
@@ -66,7 +66,6 @@ export function InviteLanding({ code }: { code: string }) {
         <p className="mt-1 opacity-90">
           do gry 1 na 1 · do {preview.target} · zaczyna {preview.inviterStarts ? preview.inviter.name : "Ty"}
         </p>
-        {preview.evenRounds && <p className="mt-1 text-sm font-semibold">⚖️ wyrównana runda – drugi może dorzucić do remisu</p>}
       </section>
       {preview.profile ? (
         <p className="text-center text-muted">Grasz jako {preview.profile.name}.</p>

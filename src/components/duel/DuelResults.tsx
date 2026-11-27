@@ -34,11 +34,9 @@ export function DuelResults({
   const me = duel.inviter.id === meId ? duel.inviter : duel.rival!;
   const rival = duel.inviter.id === meId ? duel.rival! : duel.inviter;
   const won = duel.winnerId === meId;
-  // Remis: wyrównana runda, obaj zeszli do 0 w tej samej rundzie.
-  const draw = duel.winnerId === null;
   const winner = won ? me : rival;
   const duration = gameDuration(state);
-  const series = state.turns.filter((t) => t.playerId === (duel.winnerId ?? meId)).length;
+  const series = state.turns.filter((t) => t.playerId === duel.winnerId).length;
   const lastIsMine = state.turns.at(-1)?.playerId === meId;
 
   async function rematch() {
@@ -68,20 +66,15 @@ export function DuelResults({
 
   return (
     <main className="flex flex-1 flex-col gap-4">
-      <section
-        className={`mt-2 rounded-3xl px-4 py-6 text-center text-white ${draw ? "bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8]" : ""}`}
-        style={draw ? undefined : accentBackground(playerColor(winner.color))}
-      >
+      <section className="mt-2 rounded-3xl px-4 py-6 text-center text-white" style={accentBackground(playerColor(winner.color))}>
         <p className="text-5xl" aria-hidden>
-          {draw ? "🤝" : won ? "🏆" : "🎯"}
+          {won ? "🏆" : "🎯"}
         </p>
-        <p className="mt-1 text-2xl font-extrabold">{draw ? "Remis!" : won ? "Wygrywasz!" : `Wygrywa ${rival.name}`}</p>
-        {draw && <p className="opacity-90">Obaj zeszliście do 0 w tej samej rundzie.</p>}
+        <p className="mt-1 text-2xl font-extrabold">{won ? "Wygrywasz!" : `Wygrywa ${rival.name}`}</p>
         <p className="opacity-90">
           do {state.settings.target} · {series} {seriesWord(series)}
           {duration !== null && ` · czas ${formatDuration(duration)}`}
         </p>
-        {state.settings.evenRounds && !draw && <p className="mt-0.5 text-sm opacity-80">⚖️ wyrównana runda</p>}
       </section>
 
       <section className="rounded-3xl bg-surface p-4 ring-1 ring-line" aria-label="Bilans">
@@ -91,9 +84,8 @@ export function DuelResults({
           <Name p={rival} />
           <span className={`font-mono text-5xl font-bold ${won ? "text-green" : ""}`}>{duel.balance[me.id] ?? 0}</span>
           <span className="font-mono text-4xl text-muted">:</span>
-          <span className={`font-mono text-5xl font-bold ${won || draw ? "" : "text-green"}`}>{duel.balance[rival.id] ?? 0}</span>
+          <span className={`font-mono text-5xl font-bold ${won ? "" : "text-green"}`}>{duel.balance[rival.id] ?? 0}</span>
         </div>
-        {duel.draws > 0 && <p className="mt-1 text-center text-sm text-muted">remisy: {duel.draws}</p>}
       </section>
 
       <section className="rounded-3xl bg-surface px-4 py-1 ring-1 ring-line" aria-label="Porównanie">

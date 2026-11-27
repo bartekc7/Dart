@@ -21,8 +21,6 @@ describe("1 na 1", () => {
     let g = createGame([a, b], 101);
     g = applyTurn(g, 101);
     expect(rematchStarter(g, "a")).toBe("b");
-    // Remis (wyrównana runda): zaczyna ten, kto był drugi.
-    expect(rematchStarter(g, null)).toBe("b");
   });
 
   it("cele 101/201/301/501", () => {

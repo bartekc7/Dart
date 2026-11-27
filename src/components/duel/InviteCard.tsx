@@ -21,7 +21,7 @@ export function InviteCard({
 }) {
   const { inviter, rival } = duel;
   const starts = duel.starterId === inviter.id ? inviter.name : "Ty";
-  const played = rival ? (duel.balance[rival.id] ?? 0) + (duel.balance[inviter.id] ?? 0) + duel.draws : 0;
+  const played = rival ? (duel.balance[rival.id] ?? 0) + (duel.balance[inviter.id] ?? 0) : 0;
   return (
     <div className="flex flex-col gap-4 rounded-3xl bg-surface p-4 shadow-2xl ring-1 ring-line">
       <div className="rounded-2xl bg-gradient-to-br from-[#1e3a8a] to-[#1d4ed8] px-4 py-5 text-center text-white">
@@ -34,11 +34,9 @@ export function InviteCard({
         <p className="mt-1 opacity-90">
           1 na 1 · do {duel.target} · zaczyna {starts}
         </p>
-        {duel.evenRounds && <p className="mt-1 text-sm font-semibold">⚖️ wyrównana runda – drugi może dorzucić do remisu</p>}
         {rival && played > 0 && (
           <p className="mt-1 text-sm opacity-80">
             Wasz bilans: {duel.balance[rival.id] ?? 0} : {duel.balance[inviter.id] ?? 0}
-            {duel.draws > 0 && ` · remisy ${duel.draws}`}
           </p>
         )}
       </div>
