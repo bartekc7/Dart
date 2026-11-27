@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { deviceToken, ensureDeviceToken, handle, readJson, withDeviceCookie } from "@/lib/server/http";
+import { deviceToken, ensureDeviceToken, handle, readJson, track, withDeviceCookie } from "@/lib/server/http";
 import { acceptByCode, invitePreview } from "@/lib/server/duels";
 
 /** Zaproszenie z linku: kto zaprasza i czy ten telefon musi najpierw podać nazwę. */
@@ -14,6 +14,8 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/duels/code/
   return handle(async (db) => {
     const body = await readJson(req);
     const { token } = ensureDeviceToken(req);
-    return withDeviceCookie(NextResponse.json(await acceptByCode(db, token, code, body)), token);
+    const out = await acceptByCode(db, token, code, body);
+    track(db, { type: "duel_start", token });
+    return withDeviceCookie(NextResponse.json(out), token);
   });
 }

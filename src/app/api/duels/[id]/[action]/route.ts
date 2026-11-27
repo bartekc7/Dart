@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { deviceToken, handle, readJson } from "@/lib/server/http";
+import { deviceToken, handle, readJson, track } from "@/lib/server/http";
 import {
   acceptDuel,
   cancelDuel,
@@ -18,23 +18,34 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/duels/[id]/
     const token = deviceToken(req);
     const body = await readJson(req);
     switch (action) {
-      case "accept":
-        return NextResponse.json({ duel: await acceptDuel(db, token, id) });
+      case "accept": {
+        const duel = await acceptDuel(db, token, id);
+        track(db, { type: "duel_start", token });
+        return NextResponse.json({ duel });
+      }
       case "decline":
         await declineDuel(db, token, id);
+        track(db, { type: "duel_decline", token });
         return NextResponse.json({ ok: true });
       case "cancel":
         await cancelDuel(db, token, id);
+        track(db, { type: "duel_cancel", token });
         return NextResponse.json({ ok: true });
-      case "turn":
-        return NextResponse.json({ duel: await submitDuelTurn(db, token, id, body) });
+      case "turn": {
+        const duel = await submitDuelTurn(db, token, id, body);
+        if (duel.status === "finished") track(db, { type: "duel_end", token });
+        return NextResponse.json({ duel });
+      }
       case "undo":
         return NextResponse.json(await undoDuelTurn(db, token, id));
       case "live":
         await setDuelLive(db, token, id, body);
         return NextResponse.json({ ok: true });
-      case "rematch":
-        return NextResponse.json(await rematchDuel(db, token, id));
+      case "rematch": {
+        const out = await rematchDuel(db, token, id);
+        track(db, { type: "duel_invite", token });
+        return NextResponse.json(out);
+      }
       default:
         throw new UserError("Nieznana akcja.", 404);
     }

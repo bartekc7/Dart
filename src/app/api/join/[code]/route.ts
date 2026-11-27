@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { deviceToken, ensureDeviceToken, handle, readJson, withDeviceCookie } from "@/lib/server/http";
+import { deviceToken, ensureDeviceToken, handle, readJson, track, withDeviceCookie } from "@/lib/server/http";
 import { joinLeague, leagueByCode, takenLooks, UserError, whoAmI } from "@/lib/server/league";
 
 /** Podgląd zaproszenia: nazwa ligi i czy ten telefon już do niej należy. */
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<"/api/join/[code]
     const body = await readJson(req);
     const { token } = ensureDeviceToken(req);
     await joinLeague(db, token, code, body.name, body.look);
+    track(db, { type: "league_join", token });
     return withDeviceCookie(NextResponse.json({ ok: true }), token);
   });
 }
