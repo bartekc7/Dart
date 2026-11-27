@@ -1,16 +1,14 @@
 "use client";
 
-import { useMemberName } from "@/components/league/LeagueProvider";
 import { formatRecord, recordLabel, recordOrder } from "@/lib/game/records";
 import { RECORD_COLOR } from "./AchievementToasts";
 import { useLeagueRecords } from "./useAchievements";
 
 const date = (ms: number) => new Date(ms).toLocaleDateString("pl-PL", { day: "numeric", month: "short" });
 
-/** „Rekordy” na karcie gracza: jego najlepsze wartości i rekord ligi do pobicia. */
+/** „Rekordy” na karcie gracza: jego najlepsze wartości (bez rekordów innych graczy – te są w Statystykach ligi). */
 export function RecordsTile({ memberId }: { memberId: string }) {
   const records = useLeagueRecords();
-  const nameOf = useMemberName();
   if (!records) return null;
   const mine = records.personal[memberId] ?? {};
   const keys = Object.keys(mine).sort((a, b) => recordOrder(a) - recordOrder(b));
@@ -30,8 +28,8 @@ export function RecordsTile({ memberId }: { memberId: string }) {
               <span className="min-w-0 flex-1 leading-tight">
                 <span className="block font-semibold">{recordLabel(k)}</span>
                 <span className="block text-sm text-muted">
-                  {date(r.at)} ·{" "}
-                  {holds ? "rekord ligi 👑" : lg ? `liga: ${formatRecord(k, lg.value)} (${nameOf(lg.memberId)})` : ""}
+                  {date(r.at)}
+                  {holds ? " · rekord ligi 👑" : ""}
                 </span>
               </span>
               <span className="font-mono text-2xl font-bold tabular-nums" style={holds ? { color: RECORD_COLOR } : undefined}>
