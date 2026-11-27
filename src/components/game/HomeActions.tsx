@@ -7,6 +7,7 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { isGameOver } from "@/lib/game/engine";
 import { removeLive } from "@/lib/live/publish";
 import { useStoredGame, useStoredTraining } from "@/lib/game/storage";
+import { DuelButton } from "@/components/duel/DuelHome";
 
 export function HomeActions() {
   const [game, setGame] = useStoredGame();
@@ -74,12 +75,18 @@ export function HomeActions() {
   );
 }
 
-/** Wejście do treningów solo: mniejsze i obrysowane, żeby nie konkurowało z grą ligową. */
+/**
+ * Wejście do treningów solo i gier 1 na 1: mniejsze i obrysowane, żeby nie
+ * konkurowały z grą ligową.
+ */
 function TrainingButton() {
   const [training] = useStoredTraining();
   return (
-    <ButtonLink href="/trening" variant="secondary" className="min-h-12 text-base">
-      🎯 {training ? "Wróć do treningu" : "Trening solo"}
-    </ButtonLink>
+    <div className="grid grid-cols-2 gap-2">
+      <ButtonLink href="/trening" variant="secondary" className="min-h-12 px-2 text-base">
+        🎯 {training ? "Wróć do treningu" : "Trening solo"}
+      </ButtonLink>
+      <DuelButton className="px-2" />
+    </div>
   );
 }

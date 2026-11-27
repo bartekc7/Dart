@@ -112,6 +112,44 @@ update members m set color_idx = (select count(*) from members x where x.league_
  where m.color_idx is null and m.icon is null;
 create unique index if not exists members_league_icon on members (league_id, icon) where icon is not null;
 create index if not exists trainings_member on trainings (member_id, finished_at desc);
+-- Gry 1 na 1 (towarzyskie, poza ligą). Profil: gracz ligi (member_id) albo gość spoza ligi.
+create table if not exists duel_profiles (
+  id text primary key,
+  member_id text unique references members(id) on delete set null,
+  name text not null,
+  color_idx integer,
+  icon text,
+  created_at timestamptz not null default now()
+);
+-- Telefony gości (gracz ligi jest rozpoznawany przez devices → members).
+create table if not exists duel_devices (
+  token_hash text primary key,
+  profile_id text not null references duel_profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  last_seen timestamptz not null default now()
+);
+create table if not exists duels (
+  id text primary key,
+  inviter_id text not null references duel_profiles(id) on delete cascade,
+  rival_id text references duel_profiles(id) on delete cascade,
+  target integer not null,
+  starter text not null,
+  status text not null,
+  invite_code text unique,
+  state jsonb,
+  live jsonb,
+  rev bigint not null default 0,
+  winner_id text,
+  rematch_of text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  started_at timestamptz,
+  ended_at timestamptz
+);
+create index if not exists duels_inviter on duels (inviter_id, status);
+create index if not exists duels_rival on duels (rival_id, status);
+create index if not exists duels_open on duels (status) where status in ('pending', 'active');
+create index if not exists duels_rematch on duels (rematch_of) where rematch_of is not null;
 `;
 
 export async function ensureSchema(db: Db) {
