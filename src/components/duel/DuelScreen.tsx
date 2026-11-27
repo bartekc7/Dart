@@ -13,6 +13,7 @@ import { usePoll } from "@/lib/live/usePoll";
 import { DuelPlay } from "./DuelPlay";
 import { DuelResults } from "./DuelResults";
 import { InviteCard } from "./InviteCard";
+import { useDuelRecords } from "./useDuelRecords";
 
 type Data = { duel: Duel; me: string };
 
@@ -27,6 +28,10 @@ export function DuelScreen({ id }: { id: string }) {
   );
   // Odpowiedź po mojej akcji (seria, cofnięcie) jest świeższa niż ostatnie odpytanie.
   const [mine, setMine] = useState<Duel | null>(null);
+  const polledDuel = poll.status === "ready" ? poll.data.duel : null;
+  const current = polledDuel && mine && mine.id === polledDuel.id && mine.rev > polledDuel.rev ? mine : polledDuel;
+  // Rekordy 1 na 1 liczymy tylko dla gry, która się toczy albo właśnie skończyła.
+  const records = useDuelRecords(id, current && (current.status === "active" || current.status === "finished") ? current.state : null, poll.status === "ready" ? poll.data.me : "");
 
   if (poll.status === "loading") return <Loading />;
   if (poll.status === "error") {
@@ -37,16 +42,15 @@ export function DuelScreen({ id }: { id: string }) {
       </main>
     );
   }
-  const polled = poll.data.duel;
-  const duel = mine && mine.id === polled.id && mine.rev > polled.rev ? mine : polled;
+  const duel = current!;
   const meId = poll.data.me;
   const rival = duel.inviter.id === meId ? duel.rival : duel.inviter;
 
   switch (duel.status) {
     case "active":
-      return <DuelPlay duel={duel} meId={meId} onDuel={setMine} />;
+      return <DuelPlay duel={duel} meId={meId} onDuel={setMine} records={records} />;
     case "finished":
-      return <DuelResults duel={duel} meId={meId} onDuel={setMine} />;
+      return <DuelResults duel={duel} meId={meId} onDuel={setMine} records={records} />;
     case "pending":
       return duel.inviter.id === meId ? <Waiting duel={duel} /> : <Invited duel={duel} />;
     default:
@@ -143,7 +147,7 @@ function Closed({ duel, meId, rival }: { duel: Duel; meId: string; rival: DuelPr
     <main className="flex flex-1 flex-col gap-4">
       <AppHeader title="1 na 1" backHref="/" />
       <Message icon={icon} title={title} text={text} />
-      <ButtonLink href="/1na1">{iInvited ? "Zaproś kogoś innego" : "Nowy pojedynek"}</ButtonLink>
+      <ButtonLink href="/1na1/nowy">{iInvited ? "Zaproś kogoś innego" : "Nowy pojedynek"}</ButtonLink>
       <ButtonLink href="/" variant="secondary">
         Wróć na start
       </ButtonLink>

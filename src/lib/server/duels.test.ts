@@ -14,6 +14,8 @@ import {
   myProfile,
   opponents,
   rematchDuel,
+  rivalSummary,
+  duelSummary,
   requireProfile,
   setDuelLive,
   submitDuelTurn,
@@ -155,5 +157,19 @@ describe.skipIf(!url)("gry 1 na 1 w bazie", () => {
   it("gry 1 na 1 widzą tylko ich gracze", async () => {
     const { rows } = await db.query("select id from duels where target = 101 order by created_at limit 1");
     await expect(getDuel(db, await requireProfile(db, gosc), rows[0].id)).rejects.toThrow(/Nie ma takiej gry/);
+  });
+
+  it("ekran 1 na 1: mój bilans i rekordy; Ty vs rywal tylko dla znanych rywali", async () => {
+    const sum = await duelSummary(db, ania);
+    expect(sum.totals).toMatchObject({ games: 1, won: 0, lost: 1 });
+    expect(sum.records.personal[sum.profile.id].series.value).toBe(100);
+    const b = (await opponents(db, ania)).find((o) => o.name === "Bartek")!;
+    expect(b.lastWon).toBe(false);
+    const { rival, h2h } = await rivalSummary(db, ania, b.id);
+    expect(rival.name).toBe("Bartek");
+    expect(h2h).toMatchObject({ won: 0, lost: 1, streak: { winnerId: b.id, n: 1 } });
+    // Marek (gość) nie grał z Bartkiem i nie jest w jego lidze.
+    const marek = await requireProfile(db, gosc);
+    await expect(rivalSummary(db, bartek, marek.id)).rejects.toThrow(/Nie ma takiego gracza/);
   });
 });
