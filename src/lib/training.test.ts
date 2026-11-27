@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  addAim, addCheckout, addClock, aimSummary, AIM_DARTS, CHECKOUT_ROUNDS, clockField, formatScore, isTrainingOver,
-  isTrainingRecord, isTrainingState, startTraining, trainingScore, trainingStats, undoTraining, type TrainingRecord,
+  addAim, addCheckout, addClock, addFree, aimSummary, AIM_DARTS, CHECKOUT_ROUNDS, clockField, endFree, formatScore,
+  freeSummary, freeTotals, isFreeSeriesRecord, isTrainingOver, MODES,
+  isTrainingRecord, isTrainingState, startTraining, trainingScore, trainingStats, undoTraining, type TrainingRecord, type TrainingState,
 } from "./training";
 
 const rec = (score: number, i: number, mode: TrainingRecord["mode"] = "aim", variant = "20"): TrainingRecord => ({
@@ -66,5 +67,52 @@ describe("treningi", () => {
 
   it("pierwszy trening to nie rekord", () => {
     expect(isTrainingRecord([], { id: "x", mode: "aim", variant: "20", score: 50 })).toBeNull();
+  });
+});
+
+describe("trening swobodny", () => {
+  it("jest pierwszy na liście trybów", () => {
+    expect(MODES[0].mode).toBe("free");
+  });
+
+  it("zapisuje rzutki, liczy serie po 3 i kończy się, kiedy gracz chce", () => {
+    let s = startTraining("free");
+    expect(isTrainingOver(s)).toBe(false);
+    expect(endFree(s)).toBe(s); // bez rzutek nie ma czego kończyć
+    for (const f of ["T20", "20", "5", "D25", "0", "X"]) s = addFree(s, f);
+    expect(s.mode === "free" && s.darts).toEqual(["T20", "20", "5", "D25", "0"]);
+    expect(freeSummary(s.mode === "free" ? s.darts : [])).toMatchObject({ darts: 5, points: 135, series: [85, 50], bestSeries: 85, per3: 81 });
+    expect(trainingScore(s)).toBe(81);
+    s = endFree(s);
+    expect(isTrainingOver(s)).toBe(true);
+    expect(addFree(s, "20")).toBe(s);
+    expect(formatScore("free", 81)).toBe("81,0 śr.");
+    const back = undoTraining(s);
+    expect(isTrainingOver(back)).toBe(false);
+    expect(back.mode === "free" && back.darts.length).toBe(4);
+    expect(isTrainingState(s)).toBe(true);
+    expect(isTrainingState({ mode: "free", darts: [], startedAt: 1 })).toBe(false);
+  });
+
+  const free = (i: number, darts: string[], minutes = 5): TrainingRecord => {
+    const data: TrainingState = { mode: "free", darts, ended: true, startedAt: 0 };
+    return { id: `f${i}`, mode: "free", variant: "", score: trainingScore(data), data, startedAt: i * 1e6, finishedAt: i * 1e6 + minutes * 60000 };
+  };
+
+  it("rekord średniej dopiero od 30 rzutek", () => {
+    const short = free(1, ["T20", "T20", "T20"]);
+    const long = free(2, Array(30).fill("20"));
+    expect(trainingStats([short, long], "free", "").best?.id).toBe("f2");
+    const better = free(3, Array(30).fill("T20"));
+    expect(isTrainingRecord([short, long], better)?.id).toBe("f2");
+    expect(isTrainingRecord([short, long], free(4, ["T20", "T20", "T20"]))).toBeNull();
+  });
+
+  it("podsumowanie: rzutki, średnia ważona, najlepsza seria i czas", () => {
+    const list = [free(1, ["T20", "T20", "T20"], 2), free(2, Array(9).fill("1"), 10), rec(40, 3)];
+    expect(freeTotals(list)).toMatchObject({ count: 2, darts: 12, per3: 47.3, bestSeries: 180, bestSeriesId: "f1", minutes: 12 });
+    expect(isFreeSeriesRecord(list, "x", ["T20", "T20", "T19"])).toBeNull();
+    expect(isFreeSeriesRecord(list.slice(1), "x", ["T20", "T20", "T19"])).toBe(3);
+    expect(isFreeSeriesRecord([], "x", ["T20"])).toBeNull();
   });
 });

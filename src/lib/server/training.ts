@@ -1,6 +1,6 @@
 import {
-  addAim, addCheckout, addClock, CHECKOUT_MAX, CHECKOUT_MIN, CHECKOUT_ROUNDS, isTrainingOver, isTrainingState,
-  startTraining, trainingScore, trainingVariant, type AimHit, type TrainingRecord, type TrainingState,
+  addAim, addCheckout, addClock, addFree, CHECKOUT_MAX, CHECKOUT_MIN, CHECKOUT_ROUNDS, isTrainingOver, isTrainingState,
+  endFree, FREE_MAX_DARTS, startTraining, trainingScore, trainingVariant, type AimHit, type TrainingRecord, type TrainingState,
 } from "../training";
 import type { Db } from "./db";
 import { UserError, type Me } from "./league";
@@ -14,7 +14,16 @@ const MAX_TRAINING_MS = 3 * 60 * 60 * 1000;
 function replay(raw: unknown): TrainingState {
   if (!isTrainingState(raw)) throw new UserError("Nieprawidłowy trening.");
   let s: TrainingState;
-  if (raw.mode === "aim") {
+  if (raw.mode === "free") {
+    if (raw.darts.length > FREE_MAX_DARTS) throw new UserError("Za dużo rzutek.");
+    s = startTraining("free", "20", Math.random, raw.startedAt);
+    for (const d of raw.darts) {
+      const next = typeof d === "string" ? addFree(s, d) : s;
+      if (next === s) throw new UserError("Nieprawidłowa rzutka.");
+      s = next;
+    }
+    if (raw.ended) s = endFree(s);
+  } else if (raw.mode === "aim") {
     s = startTraining("aim", raw.target, Math.random, raw.startedAt);
     for (const d of raw.darts) {
       if (!["S", "D", "T", "0"].includes(d as string) || (raw.target === "25" && d === "T"))

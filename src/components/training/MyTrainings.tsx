@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Loading } from "@/components/league/StatusScreens";
 import { RECORD_COLOR } from "@/components/achievements/AchievementToasts";
 import { ButtonLink } from "@/components/ui/Button";
-import { AIM_TARGETS, formatScore, MODE_BY_ID, MODES, trainingStats, variantLabel, type TrainingMode } from "@/lib/training";
+import {
+  AIM_TARGETS, dartsWord, formatScore, freeSummary, freeTotals, FREE_RECORD_MIN_DARTS, MODE_BY_ID, MODES, trainingStats,
+  variantLabel, type TrainingMode, type TrainingRecord,
+} from "@/lib/training";
 import { formatAvg, Trend } from "./TrainingScreen";
 import { useMyTrainings } from "./useTrainings";
 
@@ -23,9 +26,13 @@ const when = (ms: number) => {
 /** Statystyki treningów: tylko moje, osobno od gier ligowych. */
 export function MyTrainings() {
   const { list, error } = useMyTrainings();
-  const [tab, setTab] = useState<Tab>({ mode: "aim", variant: "20" });
+  const [picked, setPicked] = useState<Tab | null>(null);
   if (error && !list) return <p className="py-10 text-center text-muted">{error}</p>;
   if (!list) return <Loading />;
+  // Na start zakładka trybu z ostatniego treningu.
+  const latest = list.reduce<TrainingRecord | null>((a, t) => (!a || t.finishedAt > a.finishedAt ? t : a), null);
+  const tab: Tab = picked ?? (latest ? { mode: latest.mode, variant: latest.variant } : { mode: "free", variant: "" });
+  const setTab = setPicked;
   if (!list.length) {
     return (
       <div className="flex flex-col items-center gap-4 py-10 text-center">
@@ -46,7 +53,7 @@ export function MyTrainings() {
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted">Widzisz je tylko Ty. Nie liczą się do rankingu, statystyk ligi ani osiągnięć.</p>
-      <div role="tablist" aria-label="Tryb" className="grid grid-cols-3 gap-1.5">
+      <div role="tablist" aria-label="Tryb" className="grid grid-cols-2 gap-1.5">
         {MODES.map((m) => {
           const active = tab.mode === m.mode;
           return (
@@ -80,7 +87,9 @@ export function MyTrainings() {
         </div>
       )}
 
-      {stats.count === 0 ? (
+      {tab.mode === "free" ? (
+        <FreeStats list={list} />
+      ) : stats.count === 0 ? (
         <p className="rounded-2xl border border-dashed border-line p-4 text-center text-sm text-muted">
           Brak treningów w tym trybie.
         </p>
@@ -130,6 +139,74 @@ export function MyTrainings() {
         🎯 Nowy trening
       </ButtonLink>
     </div>
+  );
+}
+
+/** Swobodny nie ma celu, więc zamiast „wyniku” pokazujemy rzutki, średnią, najlepszą serię i czas. */
+function FreeStats({ list }: { list: TrainingRecord[] }) {
+  const tot = freeTotals(list);
+  const stats = trainingStats(list, "free", "");
+  if (!tot.count)
+    return (
+      <p className="rounded-2xl border border-dashed border-line p-4 text-center text-sm text-muted">
+        Brak treningów w tym trybie.
+      </p>
+    );
+  const recent = list
+    .filter((t) => t.mode === "free")
+    .sort((a, b) => b.finishedAt - a.finishedAt)
+    .slice(0, 10);
+  const hours = tot.minutes >= 60 ? `${Math.floor(tot.minutes / 60)} h ${tot.minutes % 60} min` : `${tot.minutes} min`;
+  const avg = (v: number) => v.toFixed(1).replace(".", ",");
+  return (
+    <>
+      <dl className="grid grid-cols-3 gap-2">
+        <Tile label="treningów" value={String(tot.count)} />
+        <Tile label={dartsWord(tot.darts)} value={String(tot.darts)} />
+        <Tile label="łączny czas" value={hours} />
+        <Tile label="śr. na serię" value={avg(tot.recentPer3)} />
+        <Tile label="najlepsza seria" value={tot.bestSeries ? String(tot.bestSeries) : "–"} gold />
+        <Tile
+          label={`najlepsza średnia (od ${FREE_RECORD_MIN_DARTS} rz.)`}
+          value={stats.best ? avg(stats.best.score) : "–"}
+          gold
+        />
+      </dl>
+      {stats.series.length >= 2 && (
+        <section aria-labelledby="progress-title">
+          <h2 id="progress-title" className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+            Średnia na serię · Swobodny
+          </h2>
+          <Chart values={stats.series} lowerIsBetter={false} />
+        </section>
+      )}
+      <section aria-labelledby="recent-title">
+        <h2 id="recent-title" className="mb-2 text-sm font-semibold uppercase tracking-wider text-muted">
+          Ostatnie
+        </h2>
+        <ul className="flex flex-col gap-1.5">
+          {recent.map((t) => {
+            const sum = freeSummary(t.data.mode === "free" ? t.data.darts : []);
+            const best = t.id === stats.best?.id;
+            return (
+              <li key={t.id} className="flex items-center gap-3 rounded-2xl bg-surface px-4 py-2.5 ring-1 ring-line">
+                <span className="flex-1">
+                  {when(t.finishedAt)}
+                  <span className="block text-sm text-muted">
+                    {sum.darts} {dartsWord(sum.darts)} · max seria {sum.bestSeries}
+                    {t.id === tot.bestSeriesId && " 👑"}
+                  </span>
+                </span>
+                <span className="font-mono font-bold tabular-nums" style={best ? { color: RECORD_COLOR } : undefined}>
+                  {formatScore("free", t.score)}
+                  {best && " 👑"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+    </>
   );
 }
 

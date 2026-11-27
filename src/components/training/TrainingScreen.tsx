@@ -8,11 +8,12 @@ import { RECORD_COLOR } from "@/components/achievements/AchievementToasts";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { api } from "@/lib/api";
-import { checkout, formatCheckout, newId } from "@/lib/game/engine";
+import { DartPad, type PendingDarts } from "@/components/game/DartPad";
+import { checkout, DARTS_PER_TURN, fieldValue, formatCheckout, newId } from "@/lib/game/engine";
 import { useSeenTrainingHelp, useStoredTraining, type StoredTraining } from "@/lib/game/storage";
 import {
-  addAim, addCheckout, addClock, aimPoints, aimSummary, AIM_DARTS, AIM_TARGETS, canUndo, CHECKOUT_ROUNDS, CLOCK_LAST,
-  clockField, dartsWord, formatScore, isTrainingOver, isTrainingRecord, MODE_BY_ID, MODES, startTraining,
+  addAim, addCheckout, addClock, addFree, aimPoints, aimSummary, AIM_DARTS, AIM_TARGETS, canUndo, CHECKOUT_ROUNDS, CLOCK_LAST,
+  clockField, dartsWord, endFree, formatScore, freeSummary, FREE_RECORD_MIN_DARTS, isFreeSeriesRecord, isTrainingOver, isTrainingRecord, MODE_BY_ID, MODES, startTraining,
   trainingScore, trainingStats, trainingVariant, undoTraining, variantLabel, type AimHit, type AimTarget,
   type TrainingMode, type TrainingRecord, type TrainingState,
 } from "@/lib/training";
@@ -151,20 +152,24 @@ function Play({
   };
 
   const progress =
-    s.mode === "aim"
+    s.mode === "free"
+      ? null
+      : s.mode === "aim"
       ? s.darts.length / AIM_DARTS
       : s.mode === "clock"
         ? (clockField(s.darts) - 1) / CLOCK_LAST
         : s.results.length / s.targets.length;
   const counter =
-    s.mode === "aim"
+    s.mode === "free"
+      ? `${s.darts.length} ${dartsWord(s.darts.length)}`
+      : s.mode === "aim"
       ? `${s.darts.length}/${AIM_DARTS}`
       : s.mode === "clock"
         ? `${s.darts.length} ${dartsWord(s.darts.length)}`
         : `${Math.min(s.results.length + 1, s.targets.length)}/${s.targets.length}`;
 
   return (
-    <div className="flex flex-1 flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4 [@media(max-height:700px)]:gap-2">
       <header className="flex items-center gap-3">
         <button
           type="button"
@@ -180,9 +185,11 @@ function Play({
         </h1>
         <span className="min-w-11 text-right font-mono text-muted tabular-nums">{counter}</span>
       </header>
-      <div className="h-2 overflow-hidden rounded-full bg-surface-2" aria-hidden>
-        <div className="h-full rounded-full bg-green transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
-      </div>
+      {progress !== null && (
+        <div className="h-2 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+          <div className="h-full rounded-full bg-green transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
+        </div>
+      )}
 
       {confirmCancel && (
         <div className="flex flex-col gap-2 rounded-2xl bg-surface-2 p-3 ring-1 ring-line">
@@ -196,17 +203,25 @@ function Play({
         </div>
       )}
 
+      {s.mode === "free" && <FreePlay s={s} onChange={onChange} />}
       {s.mode === "aim" && <AimPlay s={s} onChange={onChange} />}
       {s.mode === "clock" && <ClockPlay s={s} onChange={onChange} />}
       {s.mode === "checkout" && <CheckoutPlay s={s} onChange={onChange} />}
 
-      <div className="mt-auto grid grid-cols-2 gap-2">
-        <Button variant="secondary" disabled={!canUndo(s)} onClick={() => onChange(undoTraining(s))}>
-          ↶ Cofnij
-        </Button>
-        <Button variant="secondary" onClick={() => setRules(true)}>
-          ℹ Jak to działa?
-        </Button>
+      <div className="mt-auto flex flex-col gap-2">
+        {s.mode === "free" && (
+          <Button disabled={!s.darts.length} onClick={() => onChange(endFree(s))}>
+            🏁 Zakończ trening
+          </Button>
+        )}
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" disabled={!canUndo(s)} onClick={() => onChange(undoTraining(s))}>
+            ↶ Cofnij
+          </Button>
+          <Button variant="secondary" onClick={() => setRules(true)}>
+            ℹ Jak to działa?
+          </Button>
+        </div>
       </div>
       {(rules || firstTime) && <RulesSheet mode={s.mode} first={firstTime} onClose={closeRules} />}
     </div>
@@ -215,6 +230,49 @@ function Play({
 
 const bigKey =
   "flex min-h-20 items-center justify-center rounded-2xl text-2xl font-bold ring-1 transition active:scale-[0.97]";
+
+/** Swobodny: te same pola 1–20 co w grze, serie po 3 rzutki, bez celu. */
+function FreePlay({ s, onChange }: { s: Extract<TrainingState, { mode: "free" }>; onChange: (s: TrainingState) => void }) {
+  const sum = freeSummary(s.darts);
+  const done = s.darts.length - (s.darts.length % DARTS_PER_TURN);
+  const open = s.darts.slice(done);
+  const pending: PendingDarts = { darts: open.map((f) => fieldValue(f) ?? 0), labels: open };
+  const lastIdx = done / DARTS_PER_TURN - 1;
+  const last = lastIdx >= 0 ? s.darts.slice(done - DARTS_PER_TURN, done) : null;
+  // DartPad podaje całą bieżącą serię – podmieniamy niepełną serię na nową.
+  const setOpen = (fields: string[]) => {
+    let next: TrainingState = { ...s, darts: s.darts.slice(0, done) };
+    for (const f of fields) next = addFree(next, f);
+    onChange(next);
+  };
+  return (
+    <>
+      <section className="text-center" aria-live="polite">
+        <p className="text-muted [@media(max-height:700px)]:text-sm">Średnio na serię</p>
+        <p className="font-mono text-6xl leading-none font-bold tabular-nums [@media(max-height:700px)]:text-4xl">
+          {s.darts.length ? num(sum.per3) : "–"}
+        </p>
+        <p className="mt-2 min-h-6 text-muted [@media(max-height:700px)]:mt-1 [@media(max-height:700px)]:text-sm">
+          {last ? (
+            <>
+              Ostatnia: <span className="font-mono font-semibold text-ink">{last.join(" ")}</span> ={" "}
+              <strong className="text-ink">{sum.series[lastIdx]}</strong>
+              {sum.bestSeries > 0 && ` · najlepsza ${sum.bestSeries}`}
+            </>
+          ) : (
+            "Dotknij pola, w które trafiła rzutka."
+          )}
+        </p>
+      </section>
+      <DartPad
+        remaining={Infinity}
+        pending={pending}
+        onPendingChange={(p) => setOpen(p.labels)}
+        onSubmit={(_score, _darts, fields) => setOpen(fields)}
+      />
+    </>
+  );
+}
 
 function AimPlay({ s, onChange }: { s: Extract<TrainingState, { mode: "aim" }>; onChange: (s: TrainingState) => void }) {
   const sum = aimSummary(s.target, s.darts);
@@ -400,8 +458,9 @@ function Finished({
 
   const score = trainingScore(s);
   const variant = trainingVariant(s);
-  const me = { id: training.id, mode: s.mode, variant, score };
+  const me = { id: training.id, mode: s.mode, variant, score, data: s };
   const prevBest = before ? isTrainingRecord(before, me) : null;
+  const prevSeries = before && s.mode === "free" ? isFreeSeriesRecord(before, training.id, s.darts) : null;
   const withThis: TrainingRecord[] | null = before
     ? [...before, { ...me, data: s, startedAt: s.startedAt, finishedAt: endedAt }]
     : null;
@@ -409,7 +468,12 @@ function Finished({
   const minutes = Math.max(1, Math.round((endedAt - s.startedAt) / 60000));
 
   const tiles: { label: string; value: string; gold?: boolean }[] = [];
-  if (s.mode === "aim") {
+  if (s.mode === "free") {
+    const sum = freeSummary(s.darts);
+    tiles.push({ label: "śr. na serię", value: num(sum.per3), gold: !!prevBest });
+    tiles.push({ label: "najlepsza seria", value: String(sum.bestSeries), gold: prevSeries !== null });
+    tiles.push({ label: dartsWord(sum.darts), value: String(sum.darts) });
+  } else if (s.mode === "aim") {
     const sum = aimSummary(s.target, s.darts);
     tiles.push({ label: `w ${variantLabel(s.target)}`, value: `${sum.percent}%`, gold: !!prevBest });
     tiles.push(
@@ -432,38 +496,26 @@ function Finished({
   return (
     <div className="flex flex-1 flex-col gap-4">
       {prevBest && (
-        <div
-          role="status"
-          className="ach-toast flex items-center gap-3 rounded-2xl bg-surface px-3.5 py-3 ring-1"
-          style={{ "--tw-ring-color": RECORD_COLOR, boxShadow: `0 0 0 4px color-mix(in oklab, ${RECORD_COLOR} 20%, transparent)` } as React.CSSProperties}
-        >
-          <span
-            aria-hidden
-            className="flex size-11 shrink-0 items-center justify-center rounded-2xl border-2 text-2xl"
-            style={{ borderColor: RECORD_COLOR, backgroundColor: `color-mix(in oklab, ${RECORD_COLOR} 20%, transparent)` }}
-          >
-            📈
-          </span>
-          <span className="leading-tight">
-            <span className="block text-xs font-bold uppercase tracking-wider" style={{ color: RECORD_COLOR }}>
-              📈 Rekord treningu
-            </span>
-            <span className="mt-0.5 block text-lg font-bold">
-              {info.name}
-              {s.mode === "aim" && ` w ${variantLabel(s.target)}`}: {formatScore(s.mode, score)}
-            </span>
-            <span className="block text-sm text-muted">Poprzedni: {formatScore(s.mode, prevBest.score)}</span>
-          </span>
-        </div>
+        <RecordBubble
+          title={`${info.name}${s.mode === "aim" ? ` w ${variantLabel(s.target)}` : ""}${s.mode === "free" ? " – średnia" : ""}: ${formatScore(s.mode, score)}`}
+          prev={formatScore(s.mode, prevBest.score)}
+        />
+      )}
+      {prevSeries !== null && s.mode === "free" && (
+        <RecordBubble title={`Najlepsza seria: ${freeSummary(s.darts).bestSeries}`} prev={String(prevSeries)} />
       )}
       <section className="pt-2 text-center">
         <p className="text-5xl">{info.icon}</p>
         <h1 className="mt-2 text-3xl font-bold">Koniec treningu</h1>
         <p className="mt-1 text-muted">
           {info.name}
-          {s.mode === "aim" && ` · ${variantLabel(s.target)} · ${AIM_DARTS} rzutek`} · {minutes} min
+          {s.mode === "aim" && ` · ${variantLabel(s.target)} · ${AIM_DARTS} rzutek`}
+          {s.mode === "free" && ` · ${s.darts.length} ${dartsWord(s.darts.length)}`} · {minutes} min
         </p>
         <SaveStatus save={save} onRetry={doSave} />
+        {s.mode === "free" && s.darts.length < FREE_RECORD_MIN_DARTS && (
+          <p className="mt-1 text-sm text-muted">Rekord średniej liczy się od {FREE_RECORD_MIN_DARTS} rzutek.</p>
+        )}
       </section>
       <dl className="grid grid-cols-3 gap-2">
         {tiles.map((t) => (
@@ -506,7 +558,33 @@ function Finished({
   );
 }
 
+function RecordBubble({ title, prev }: { title: string; prev: string }) {
+  return (
+    <div
+      role="status"
+      className="ach-toast flex items-center gap-3 rounded-2xl bg-surface px-3.5 py-3 ring-1"
+      style={{ "--tw-ring-color": RECORD_COLOR, boxShadow: `0 0 0 4px color-mix(in oklab, ${RECORD_COLOR} 20%, transparent)` } as React.CSSProperties}
+    >
+      <span
+        aria-hidden
+        className="flex size-11 shrink-0 items-center justify-center rounded-2xl border-2 text-2xl"
+        style={{ borderColor: RECORD_COLOR, backgroundColor: `color-mix(in oklab, ${RECORD_COLOR} 20%, transparent)` }}
+      >
+        📈
+      </span>
+      <span className="leading-tight">
+        <span className="block text-xs font-bold uppercase tracking-wider" style={{ color: RECORD_COLOR }}>
+          📈 Rekord treningu
+        </span>
+        <span className="mt-0.5 block text-lg font-bold">{title}</span>
+        <span className="block text-sm text-muted">Poprzedni: {prev}</span>
+      </span>
+    </div>
+  );
+}
+
 export function formatAvg(mode: TrainingMode, v: number): string {
+  if (mode === "free") return num(v);
   if (mode === "aim") return `${Math.round(v)}%`;
   if (mode === "checkout") return `${num(v)} z ${CHECKOUT_ROUNDS}`;
   return `${Math.round(v)} ${dartsWord(Math.round(v))}`;
@@ -515,8 +593,8 @@ export function formatAvg(mode: TrainingMode, v: number): string {
 export function Trend({ mode, trend }: { mode: TrainingMode; trend: number }) {
   const good = MODE_BY_ID[mode].lowerIsBetter ? trend < 0 : trend > 0;
   if (Math.abs(trend) < 0.05) return <span className="text-muted"> · bez zmian</span>;
-  const size = mode === "checkout" ? num(Math.abs(trend)) : String(Math.round(Math.abs(trend)));
-  const unit = mode === "aim" ? " pkt %" : mode === "clock" ? ` ${dartsWord(Math.round(Math.abs(trend)))}` : "";
+  const size = mode === "checkout" || mode === "free" ? num(Math.abs(trend)) : String(Math.round(Math.abs(trend)));
+  const unit = mode === "aim" ? " pkt %" : mode === "free" ? " pkt" : mode === "clock" ? ` ${dartsWord(Math.round(Math.abs(trend)))}` : "";
   return (
     <span className={`font-bold ${good ? "text-green" : "text-red"}`}>
       {" "}

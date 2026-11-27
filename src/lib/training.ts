@@ -4,7 +4,9 @@
  * ani osiągnięcia. Kod bez Reacta – działa w przeglądarce i na serwerze.
  */
 
-export type TrainingMode = "aim" | "clock" | "checkout";
+import { DARTS_PER_TURN, fieldValue } from "./game/engine";
+
+export type TrainingMode = "free" | "aim" | "clock" | "checkout";
 /** Celowanie: w co. 25 = Bull (25 i 50). */
 export type AimTarget = "20" | "19" | "25";
 
@@ -14,11 +16,17 @@ export const CHECKOUT_MIN = 2;
 export const CHECKOUT_MAX = 60;
 /** Dookoła tarczy: 1–20, na końcu Bull (21). */
 export const CLOCK_LAST = 21;
+/** Swobodny: rekord średniej liczy się dopiero od tylu rzutek (10 serii), żeby 3 dobre rzutki nie były rekordem. */
+export const FREE_RECORD_MIN_DARTS = 30;
+/** Swobodny: najwięcej rzutek w jednym treningu (dalej to raczej pomyłka). */
+export const FREE_MAX_DARTS = 1500;
 
 /** Rzutka w Celowaniu: single, double, triple (dla Bulla: S = 25, D = 50) albo pudło. */
 export type AimHit = "S" | "D" | "T" | "0";
 
 export type TrainingState =
+  /** Swobodny: rzutki jako pola („T20”, „D8”, „5”, „25”, „D25”, „0”), serie po 3; `ended` = gracz zakończył. */
+  | { mode: "free"; darts: string[]; ended: boolean; startedAt: number }
   | { mode: "aim"; target: AimTarget; darts: AimHit[]; startedAt: number }
   | { mode: "clock"; darts: boolean[]; startedAt: number }
   | { mode: "checkout"; targets: number[]; results: boolean[]; startedAt: number };
@@ -36,6 +44,17 @@ export interface ModeInfo {
 }
 
 export const MODES: ModeInfo[] = [
+  {
+    mode: "free",
+    icon: "🧘",
+    name: "Swobodny",
+    short: "Rzucasz, w co chcesz, i kończysz, kiedy chcesz.",
+    rules: [
+      "Bez celu i bez zasad: rzucasz, w co chcesz, a po każdej rzutce dotykasz pola, w które trafiła (z Double albo Triple, gdy trzeba). Co 3 rzutki zaczyna się nowa seria.",
+      "Kończysz, kiedy chcesz – przyciskiem „Zakończ trening”. Widzisz średnią na serię i najlepszą serię. Przykład: T20, 20 i 5 = seria 85. Rekord średniej liczy się od 30 rzutek.",
+    ],
+    lowerIsBetter: false,
+  },
   {
     mode: "aim",
     icon: "🎯",
@@ -85,6 +104,7 @@ export function variantLabel(variant: string): string {
 }
 
 export function startTraining(mode: TrainingMode, target: AimTarget = "20", random: () => number = Math.random, now = Date.now()): TrainingState {
+  if (mode === "free") return { mode, darts: [], ended: false, startedAt: now };
   if (mode === "aim") return { mode, target, darts: [], startedAt: now };
   if (mode === "clock") return { mode, darts: [], startedAt: now };
   const span = CHECKOUT_MAX - CHECKOUT_MIN + 1;
@@ -96,6 +116,7 @@ export function isTrainingState(x: unknown): x is TrainingState {
   if (!x || typeof x !== "object") return false;
   const s = x as Record<string, unknown>;
   if (typeof s.startedAt !== "number") return false;
+  if (s.mode === "free") return Array.isArray(s.darts) && typeof s.ended === "boolean";
   if (s.mode === "aim") return ["20", "19", "25"].includes(s.target as string) && Array.isArray(s.darts);
   if (s.mode === "clock") return Array.isArray(s.darts);
   if (s.mode === "checkout") return Array.isArray(s.targets) && Array.isArray(s.results);
@@ -108,12 +129,22 @@ export function clockField(darts: boolean[]): number {
 }
 
 export function isTrainingOver(s: TrainingState): boolean {
+  if (s.mode === "free") return s.ended;
   if (s.mode === "aim") return s.darts.length >= AIM_DARTS;
   if (s.mode === "clock") return clockField(s.darts) > CLOCK_LAST;
   return s.results.length >= s.targets.length;
 }
 
-/** Dodaje rzutkę / wynik próby (nic nie robi po końcu). */
+/** Dodaje rzutkę / wynik próby (nic nie robi po końcu). W Swobodnym pole jak „T20” (błędne pomija). */
+export function addFree(s: TrainingState, field: string): TrainingState {
+  if (s.mode !== "free" || s.ended || fieldValue(field) === null) return s;
+  return { ...s, darts: [...s.darts, field] };
+}
+/** Swobodny: koniec treningu (bez rzutek nie ma czego kończyć). */
+export function endFree(s: TrainingState): TrainingState {
+  if (s.mode !== "free" || !s.darts.length) return s;
+  return { ...s, ended: true };
+}
 export function addAim(s: TrainingState, hit: AimHit): TrainingState {
   if (s.mode !== "aim" || isTrainingOver(s)) return s;
   return { ...s, darts: [...s.darts, hit] };
@@ -128,6 +159,7 @@ export function addCheckout(s: TrainingState, ok: boolean): TrainingState {
 }
 
 export function undoTraining(s: TrainingState): TrainingState {
+  if (s.mode === "free") return { ...s, darts: s.darts.slice(0, -1), ended: false };
   if (s.mode === "aim") return { ...s, darts: s.darts.slice(0, -1) };
   if (s.mode === "clock") return { ...s, darts: s.darts.slice(0, -1) };
   return { ...s, results: s.results.slice(0, -1) };
@@ -135,6 +167,32 @@ export function undoTraining(s: TrainingState): TrainingState {
 
 export function canUndo(s: TrainingState): boolean {
   return (s.mode === "checkout" ? s.results.length : s.darts.length) > 0;
+}
+
+export interface FreeSummary {
+  darts: number;
+  points: number;
+  /** Serie po 3 rzutki (ostatnia może być niepełna), w punktach. */
+  series: number[];
+  /** Średnio punktów na 3 rzutki (z jednym miejscem po przecinku). */
+  per3: number;
+  /** Najlepsza seria (0, gdy brak rzutek). */
+  bestSeries: number;
+}
+
+export function freeSummary(darts: string[]): FreeSummary {
+  const values = darts.map((d) => fieldValue(d) ?? 0);
+  const series: number[] = [];
+  for (let i = 0; i < values.length; i += DARTS_PER_TURN)
+    series.push(values.slice(i, i + DARTS_PER_TURN).reduce((a, b) => a + b, 0));
+  const points = values.reduce((a, b) => a + b, 0);
+  return {
+    darts: values.length,
+    points,
+    series,
+    per3: values.length ? Math.round((points / values.length) * 30) / 10 : 0,
+    bestSeries: series.reduce((a, b) => Math.max(a, b), 0),
+  };
 }
 
 /** Punkty jednej rzutki w Celowaniu. */
@@ -183,8 +241,9 @@ export interface TrainingRecord {
   finishedAt: number;
 }
 
-/** Główny wynik: Celowanie – % trafień, Dookoła – liczba rzutek, Kończenie – udane z 10. */
+/** Główny wynik: Swobodny – średnia na 3 rzutki, Celowanie – % trafień, Dookoła – liczba rzutek, Kończenie – udane z 10. */
 export function trainingScore(s: TrainingState): number {
+  if (s.mode === "free") return freeSummary(s.darts).per3;
   if (s.mode === "aim") return aimSummary(s.target, s.darts).percent;
   if (s.mode === "clock") return s.darts.length;
   return s.results.filter(Boolean).length;
@@ -194,8 +253,9 @@ export function trainingVariant(s: TrainingState): string {
   return s.mode === "aim" ? s.target : "";
 }
 
-/** Wynik z jednostką, np. „40%”, „45 rzutek”, „6 z 10”. */
+/** Wynik z jednostką, np. „45,3 śr.”, „40%”, „45 rzutek”, „6 z 10”. */
 export function formatScore(mode: TrainingMode, score: number): string {
+  if (mode === "free") return `${score.toFixed(1).replace(".", ",")} śr.`;
   if (mode === "aim") return `${score}%`;
   if (mode === "checkout") return `${score} z ${CHECKOUT_ROUNDS}`;
   return `${score} ${dartsWord(score)}`;
@@ -205,6 +265,12 @@ export function dartsWord(n: number): string {
   if (n === 1) return "rzutka";
   const few = n % 10 >= 2 && n % 10 <= 4 && !(n % 100 >= 12 && n % 100 <= 14);
   return few ? "rzutki" : "rzutek";
+}
+
+/** Swobodny: czy trening jest dość długi, żeby jego średnia mogła być rekordem. */
+export function countsForRecord(t: { mode: TrainingMode; data?: TrainingState }): boolean {
+  if (t.mode !== "free") return true;
+  return !!t.data && t.data.mode === "free" && t.data.darts.length >= FREE_RECORD_MIN_DARTS;
 }
 
 const better = (mode: TrainingMode, a: number, b: number) => (MODE_BY_ID[mode].lowerIsBetter ? a < b : a > b);
@@ -226,7 +292,7 @@ export function trainingStats(list: TrainingRecord[], mode: TrainingMode, varian
     .filter((t) => t.mode === mode && t.variant === variant)
     .sort((a, b) => a.finishedAt - b.finishedAt);
   let best: TrainingRecord | null = null;
-  for (const t of mine) if (!best || better(mode, t.score, best.score)) best = t;
+  for (const t of mine) if (countsForRecord(t) && (!best || better(mode, t.score, best.score))) best = t;
   const avg = (xs: TrainingRecord[]) => (xs.length ? xs.reduce((n, t) => n + t.score, 0) / xs.length : null);
   const last = mine.slice(-10);
   const before = mine.slice(-20, -10);
@@ -242,11 +308,64 @@ export function trainingStats(list: TrainingRecord[], mode: TrainingMode, varian
 }
 
 /** Czy wynik bije dotychczasowy rekord treningu (pierwszy trening to nie rekord; remis też nie). */
-export function isTrainingRecord(list: TrainingRecord[], t: Pick<TrainingRecord, "mode" | "variant" | "score" | "id">): TrainingRecord | null {
+export function isTrainingRecord(
+  list: TrainingRecord[],
+  t: Pick<TrainingRecord, "mode" | "variant" | "score" | "id"> & { data?: TrainingState },
+): TrainingRecord | null {
+  if (!countsForRecord(t)) return null;
   const prev = trainingStats(
     list.filter((x) => x.id !== t.id),
     t.mode,
     t.variant,
   ).best;
   return prev && better(t.mode, t.score, prev.score) ? prev : null;
+}
+
+const freeDarts = (t: TrainingRecord) => (t.data?.mode === "free" ? t.data.darts : []);
+
+export interface FreeTotals {
+  count: number;
+  darts: number;
+  /** Średnio na 3 rzutki ze wszystkich rzutek (dłuższy trening waży więcej). */
+  per3: number;
+  /** Średnio na 3 rzutki z ostatnich (najwyżej) 10 treningów. */
+  recentPer3: number;
+  bestSeries: number;
+  /** Trening z najlepszą serią (pierwszy, który ją rzucił). */
+  bestSeriesId: string | null;
+  /** Łączny czas treningów w minutach. */
+  minutes: number;
+}
+
+/** Podsumowanie wszystkich treningów Swobodnych. */
+export function freeTotals(list: TrainingRecord[]): FreeTotals {
+  const mine = list.filter((t) => t.mode === "free").sort((a, b) => a.finishedAt - b.finishedAt);
+  const per3 = (xs: TrainingRecord[]) => {
+    const sums = xs.map((t) => freeSummary(freeDarts(t)));
+    const darts = sums.reduce((n, x) => n + x.darts, 0);
+    return darts ? Math.round((sums.reduce((n, x) => n + x.points, 0) / darts) * 30) / 10 : 0;
+  };
+  let bestSeries = 0;
+  let bestSeriesId: string | null = null;
+  for (const t of mine) {
+    const b = freeSummary(freeDarts(t)).bestSeries;
+    if (b > bestSeries) [bestSeries, bestSeriesId] = [b, t.id];
+  }
+  return {
+    count: mine.length,
+    darts: mine.reduce((n, t) => n + freeDarts(t).length, 0),
+    per3: per3(mine),
+    recentPer3: per3(mine.slice(-10)),
+    bestSeries,
+    bestSeriesId,
+    minutes: Math.round(mine.reduce((n, t) => n + Math.max(0, t.finishedAt - t.startedAt), 0) / 60000),
+  };
+}
+
+/** Swobodny: czy najlepsza seria bije dotychczasową (pierwszy trening to nie rekord; remis też nie). Zwraca poprzednią. */
+export function isFreeSeriesRecord(list: TrainingRecord[], id: string, darts: string[]): number | null {
+  const others = list.filter((t) => t.id !== id && t.mode === "free");
+  if (!others.length) return null;
+  const prev = freeTotals(others).bestSeries;
+  return freeSummary(darts).bestSeries > prev ? prev : null;
 }

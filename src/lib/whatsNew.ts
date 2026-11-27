@@ -9,6 +9,17 @@ export type WhatsNewRelease = { id: string; date: string; items: WhatsNewItem[] 
 
 export const RELEASES: WhatsNewRelease[] = [
   {
+    id: "2026-11-27",
+    date: "27 listopada",
+    items: [
+      {
+        icon: "🧘",
+        title: "Trening swobodny",
+        text: "Nowy, pierwszy tryb w Treningu solo: rzucasz, w co chcesz, dotykasz pól jak w grze i kończysz, kiedy chcesz. Na koniec widzisz średnią na serię i najlepszą serię, a w „Moje treningi” – rzutki, czas i postęp.",
+      },
+    ],
+  },
+  {
     id: "2026-11-26-4",
     date: "26 listopada",
     items: [
